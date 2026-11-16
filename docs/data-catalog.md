@@ -53,6 +53,9 @@ python3 scripts/validate.py      # エラーは exit 1、警告も見るなら -
 
 JSON を書き換えたら必ずこの検証を通してからコミットしてください。
 
+等高線を手描きするときは [docs/contour-guide.md](contour-guide.md)（描き方の作法）
+と `python3 scripts/check-contours.py`（1プリセットずつの詳細チェック）を参照。
+
 ## 設計原則
 
 1. **単位を必ず書く**（`"unit"` または `_doc` フィールド）。セル単位と実単位（m, km, kg, K, mm/年）の変換は実装側で一括して行う
