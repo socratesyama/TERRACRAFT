@@ -1,1 +1,209 @@
-{"_doc": "比較実験用の世界シナリオ。terrain.json のプリセット3世界を、目的・初期条件・期待される因果・評価指標つきの「比較可能な実験」に拡張する。同じ seed で複数シナリオを走らせ、observables.json の指標で差分を取ることで「地形が違うだけで世界が変わる」ことを検証可能にする。", "scenarios": {"island": {"title": "島の放射水系", "terrainPreset": "island", "windDirection": "west", "seaLevel": "default", "seedPolicy": "世界の seed から決定的に生成（terrain.json と同じ）", "duration": {"value": 500, "unit": "tick（1 tick = 1年）"}, "objective": "中央の山から放射状に川が流れ、海岸平野に集落が立つ。島の規模が文明の上限を決める（島嶼生物学の面積効果）", "expectedCausalChain": ["山岳 → 地形性降雨（風上斜面）", "放射水系 → 沿岸平野の沖積土", "沖積土 + 港湾 → 農業と交易の立地", "面積制約 → 人口上限と海上貿易への依存"], "expectedBiomes": ["tropicalRainforest", "temperateForest", "temperateGrassland"], "metrics": ["population", "foodSecurity", "tradeVolume", "forestCover"], "successCriteria": "どの国も島の人口上限に漸近し、食料輸入または海上貿易への依存度が上昇する"}, "mountainRange": {"title": "山脈と雨陰", "terrainPreset": "mountainRange", "windDirection": "west", "seaLevel": "default", "duration": {"value": 500, "unit": "tick"}, "objective": "東西に走る山脈の風上側に雨、風下側に雨陰砂漠。同じ気候でも斜面の向きで農業・人口・国家の規模が分かれる", "expectedCausalChain": ["湿った西風 → 風上斜面で上昇冷却 → 多雨", "山脈越え → 空気塊が乾燥 → 雨陰砂漠", "雨陰 → 土壌水分・植生の減少", "農業生産の差 → 風上側と風下側で人口密度と国力の差", "資源の偏在 → 水をめぐる緊張"], "expectedBiomes": ["temperateRainforest", "temperateForest", "temperateGrassland", "desert"], "metrics": ["population", "foodSecurity", "forestCover", "warFrequency"], "successCriteria": "風上側と風下側で降水量が数倍違い、人口密度・発展度に有意な差がつく。水資源を巡る開戦理由が観測される"}, "basin": {"title": "盆地と内陸湖", "terrainPreset": "basin", "windDirection": "west", "seaLevel": "default", "duration": {"value": 500, "unit": "tick"}, "objective": "内陸湖ができ、湖畔に農業文明が発達する。出口のない水は塩湖になり、塩は交易財になる", "expectedCausalChain": ["閉じた地形 → 水が溜まり内陸湖", "湖畔の堆積土 → 高肥沃度の農地", "農業余剰 → 人口集中と都市化", "蒸発 > 降水 → 塩分濃縮 → 塩湖", "塩・湖産物 → 長距離交易の品目"], "expectedBiomes": ["temperateGrassland", "desert", "temperateForest"], "metrics": ["population", "foodSecurity", "tradeVolume", "developmentIndex"], "successCriteria": "湖畔に人口が集中し、塩湖周辺で乾燥バイオームが広がる。塩が交易品として流れる"}, "aridRainShadow": {"title": "乾燥帯と雨陰の二重苦", "terrainPreset": "mountainRange", "windDirection": "west", "climateOverrides": {"precip": {"humidity0": 0.3, "calibration": 12000}}, "duration": {"value": 500, "unit": "tick"}, "objective": "もともと乾燥した大陸に山脈の雨陰が重なる。水が文明の第一制約になる世界", "expectedCausalChain": ["低湿度の西風 → そもそも降水が少ない", "雨陰 → さらに乾燥が強化", "農業可能地 → 河川沿いのオアシスに限定", "水資源の局所性 → 川の上流と下流で緊張", "牧畜・灌漑 → 適応的な生業への転換"], "expectedBiomes": ["desert", "savanna", "temperateGrassland"], "metrics": ["population", "foodSecurity", "warFrequency", "developmentIndex"], "successCriteria": "人口が河川沿いに集中し、灌漑政策（policy.json）の有無で人口上限が大きく変わる"}, "riverCivilization": {"title": "大河の文明", "terrainPreset": "basin", "windDirection": "south", "climateOverrides": {"precip": {"humidity0": 0.7, "calibration": 35000}}, "duration": {"value": 500, "unit": "tick"}, "objective": "洪水が土を肥やす大河の下流に、灌漑農業と集権国家が生まれる（エジプト・メソポタミア型）", "expectedCausalChain": ["上流の多雨 → 常時流量の大きな河川", "定期的な氾濫 → 沖積土の供給", "肥沃な沖積平野 → 穀物の大量生産", "余剰 → 官僚制・治水の組織化", "治水インフラ → 国家能力の向上"], "expectedBiomes": ["tropicalRainforest", "savanna", "temperateGrassland"], "metrics": ["population", "foodSecurity", "famineDeaths", "developmentIndex"], "successCriteria": "氾濫の翌年に農業生産が回復し、灌漑政策の有無で飢饉死亡が減る（disasters.json の洪水と連動）"}, "tradeChokepoint": {"title": "交易の狭所", "terrainPreset": "mountainRange", "windDirection": "west", "duration": {"value": 500, "unit": "tick"}, "objective": "山岳回廊と海峡が貿易を左右する。狭所を押さえた国が富むが、そこを狙われる", "expectedCausalChain": ["山脈 → 移動コストの高い障壁", "回廊・海峡 → 数少ない安い経路", "通過貿易 → 関税と中継利益", "富の集中 → 周辺国の羨望と緊張", "経済的価値 → 領土紛争の标的"], "expectedBiomes": ["temperateForest", "temperateGrassland"], "metrics": ["tradeVolume", "developmentIndex", "warFrequency", "treasury"], "successCriteria": "回廊を含む国の貿易額が突出し、回廊の領有を巡る戦争が観測される"}}, "comparison": {"_doc": "シナリオ比較の実験計画。同じ seed でシナリオを変え、指標の差を因果ログ（implementation-plan.md §22 の因果ログ）と突き合わせる", "seedPolicy": "全シナリオ共通の seed を使い、地形プリセットと climateOverrides だけを変える", "defaultSeed": 42, "runsPerScenario": {"value": 3, "_doc": "確率的要素（AI性格・災害）の分散を見るため、seed を変えて3試行"}}, "sources": ["Diamond, J. (1997) Guns, Germs, and Steel（地理と文明の関係）", "Wittfogel, K. (1957) Oriental Despotism（治水社会）", "Christaller, W. (1933) Die zentralen Orte in Süddeutschland（中心地理論）", "MacArthur, R. & Wilson, E. (1967) The Theory of Island Biogeography（面積効果）"]}
+{
+  "_doc": "比較実験用の世界シナリオ。terrain.json のプリセット3世界を、目的・初期条件・期待される因果・評価指標つきの「比較可能な実験」に拡張する。同じ seed で複数シナリオを走らせ、observables.json の指標で差分を取ることで「地形が違うだけで世界が変わる」ことを検証可能にする。",
+  "scenarios": {
+    "island": {
+      "title": "島の放射水系",
+      "terrainPreset": "island",
+      "windDirection": "west",
+      "seaLevel": "default",
+      "seedPolicy": "世界の seed から決定的に生成（terrain.json と同じ）",
+      "duration": {
+        "value": 500,
+        "unit": "tick（1 tick = 1年）"
+      },
+      "objective": "中央の山から放射状に川が流れ、海岸平野に集落が立つ。島の規模が文明の上限を決める（島嶼生物学の面積効果）",
+      "expectedCausalChain": [
+        "山岳 → 地形性降雨（風上斜面）",
+        "放射水系 → 沿岸平野の沖積土",
+        "沖積土 + 港湾 → 農業と交易の立地",
+        "面積制約 → 人口上限と海上貿易への依存"
+      ],
+      "expectedBiomes": [
+        "tropicalRainforest",
+        "temperateForest",
+        "temperateGrassland"
+      ],
+      "metrics": [
+        "population",
+        "foodSecurity",
+        "tradeVolume",
+        "forestCover"
+      ],
+      "successCriteria": "どの国も島の人口上限に漸近し、食料輸入または海上貿易への依存度が上昇する"
+    },
+    "mountainRange": {
+      "title": "山脈と雨陰",
+      "terrainPreset": "mountainRange",
+      "windDirection": "west",
+      "seaLevel": "default",
+      "duration": {
+        "value": 500,
+        "unit": "tick"
+      },
+      "objective": "北西から南東に走る山脈の風上側（北東斜面）に雨、風下側（南西）に雨陰砂漠。同じ気候でも斜面の向きで農業・人口・国家の規模が分かれる",
+      "expectedCausalChain": [
+        "湿った西風 → 山脈の北東斜面（風上）で上昇冷却 → 多雨",
+        "尾根越え → 空気塊が乾燥 → 雨陰砂漠（南西側）",
+        "雨陰 → 土壌水分・植生の減少",
+        "農業生産の差 → 風上側と風下側で人口密度と国力の差",
+        "資源の偏在 → 水をめぐる緊張"
+      ],
+      "expectedBiomes": [
+        "temperateRainforest",
+        "temperateForest",
+        "temperateGrassland",
+        "desert"
+      ],
+      "metrics": [
+        "population",
+        "foodSecurity",
+        "forestCover",
+        "warFrequency"
+      ],
+      "successCriteria": "風上側と風下側で降水量が数倍違い、人口密度・発展度に有意な差がつく。水資源を巡る開戦理由が観測される"
+    },
+    "basin": {
+      "title": "盆地と内陸湖",
+      "terrainPreset": "basin",
+      "windDirection": "west",
+      "seaLevel": "default",
+      "duration": {
+        "value": 500,
+        "unit": "tick"
+      },
+      "objective": "内陸湖ができ、湖畔に農業文明が発達する。出口のない水は塩湖になり、塩は交易財になる",
+      "expectedCausalChain": [
+        "閉じた地形 → 水が溜まり内陸湖",
+        "湖畔の堆積土 → 高肥沃度の農地",
+        "農業余剰 → 人口集中と都市化",
+        "蒸発 > 降水 → 塩分濃縮 → 塩湖",
+        "塩・湖産物 → 長距離交易の品目"
+      ],
+      "expectedBiomes": [
+        "temperateGrassland",
+        "desert",
+        "temperateForest"
+      ],
+      "metrics": [
+        "population",
+        "foodSecurity",
+        "tradeVolume",
+        "developmentIndex"
+      ],
+      "successCriteria": "湖畔に人口が集中し、塩湖周辺で乾燥バイオームが広がる。塩が交易品として流れる"
+    },
+    "aridRainShadow": {
+      "title": "乾燥帯と雨陰の二重苦",
+      "terrainPreset": "mountainRange",
+      "windDirection": "west",
+      "climateOverrides": {
+        "precip": {
+          "humidity0": 0.3,
+          "calibration": 12000
+        }
+      },
+      "duration": {
+        "value": 500,
+        "unit": "tick"
+      },
+      "objective": "もともと乾燥した大陸に山脈の雨陰が重なる。水が文明の第一制約になる世界",
+      "expectedCausalChain": [
+        "低湿度の西風 → そもそも降水が少ない",
+        "雨陰 → さらに乾燥が強化",
+        "農業可能地 → 河川沿いのオアシスに限定",
+        "水資源の局所性 → 川の上流と下流で緊張",
+        "牧畜・灌漑 → 適応的な生業への転換"
+      ],
+      "expectedBiomes": [
+        "desert",
+        "savanna",
+        "temperateGrassland"
+      ],
+      "metrics": [
+        "population",
+        "foodSecurity",
+        "warFrequency",
+        "developmentIndex"
+      ],
+      "successCriteria": "人口が河川沿いに集中し、灌漑政策（policy.json）の有無で人口上限が大きく変わる"
+    },
+    "riverCivilization": {
+      "title": "大河の文明",
+      "terrainPreset": "basin",
+      "windDirection": "south",
+      "climateOverrides": {
+        "precip": {
+          "humidity0": 0.7,
+          "calibration": 35000
+        }
+      },
+      "duration": {
+        "value": 500,
+        "unit": "tick"
+      },
+      "objective": "洪水が土を肥やす大河の下流に、灌漑農業と集権国家が生まれる（エジプト・メソポタミア型）",
+      "expectedCausalChain": [
+        "上流の多雨 → 常時流量の大きな河川",
+        "定期的な氾濫 → 沖積土の供給",
+        "肥沃な沖積平野 → 穀物の大量生産",
+        "余剰 → 官僚制・治水の組織化",
+        "治水インフラ → 国家能力の向上"
+      ],
+      "expectedBiomes": [
+        "tropicalRainforest",
+        "savanna",
+        "temperateGrassland"
+      ],
+      "metrics": [
+        "population",
+        "foodSecurity",
+        "famineDeaths",
+        "developmentIndex"
+      ],
+      "successCriteria": "氾濫の翌年に農業生産が回復し、灌漑政策の有無で飢饉死亡が減る（disasters.json の洪水と連動）"
+    },
+    "tradeChokepoint": {
+      "title": "交易の狭所",
+      "terrainPreset": "mountainRange",
+      "windDirection": "west",
+      "duration": {
+        "value": 500,
+        "unit": "tick"
+      },
+      "objective": "山岳回廊と海峡が貿易を左右する。狭所を押さえた国が富むが、そこを狙われる",
+      "expectedCausalChain": [
+        "山脈 → 移動コストの高い障壁",
+        "回廊・海峡 → 数少ない安い経路",
+        "通過貿易 → 関税と中継利益",
+        "富の集中 → 周辺国の羨望と緊張",
+        "経済的価値 → 領土紛争の标的"
+      ],
+      "expectedBiomes": [
+        "temperateForest",
+        "temperateGrassland"
+      ],
+      "metrics": [
+        "tradeVolume",
+        "developmentIndex",
+        "warFrequency",
+        "treasury"
+      ],
+      "successCriteria": "回廊を含む国の貿易額が突出し、回廊の領有を巡る戦争が観測される"
+    }
+  },
+  "comparison": {
+    "_doc": "シナリオ比較の実験計画。同じ seed でシナリオを変え、指標の差を因果ログ（implementation-plan.md §22 の因果ログ）と突き合わせる",
+    "seedPolicy": "全シナリオ共通の seed を使い、地形プリセットと climateOverrides だけを変える",
+    "defaultSeed": 42,
+    "runsPerScenario": {
+      "value": 3,
+      "_doc": "確率的要素（AI性格・災害）の分散を見るため、seed を変えて3試行"
+    }
+  },
+  "sources": [
+    "Diamond, J. (1997) Guns, Germs, and Steel（地理と文明の関係）",
+    "Wittfogel, K. (1957) Oriental Despotism（治水社会）",
+    "Christaller, W. (1933) Die zentralen Orte in Süddeutschland（中心地理論）",
+    "MacArthur, R. & Wilson, E. (1967) The Theory of Island Biogeography（面積効果）"
+  ]
+}

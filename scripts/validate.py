@@ -63,6 +63,188 @@ def get_path(doc, dotted):
     return cur, parent
 
 
+def point_in_poly(pt, poly):
+    """レイキャスティング法で点が多角形の内側か判定（nesting 検査用）"""
+    x, y = pt
+    n = len(poly)
+    inside = False
+    j = n - 1
+    for i in range(n):
+        xi, yi = poly[i]
+        xj, yj = poly[j]
+        if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi + 1e-12) + xi):
+            inside = not inside
+        j = i
+    return inside
+
+
+def orient(a, b, c):
+    return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+
+def seg_proper_intersect(p1, p2, p3, p4):
+    d1 = orient(p3, p4, p1)
+    d2 = orient(p3, p4, p2)
+    d3 = orient(p1, p2, p3)
+    d4 = orient(p1, p2, p4)
+    return (
+        ((d1 > 0 and d2 < 0) or (d1 < 0 and d2 > 0))
+        and ((d3 > 0 and d4 < 0) or (d3 < 0 and d4 > 0))
+    )
+
+
+def pt_seg_dist(p, a, b):
+    ax, ay = a
+    bx, by = b
+    dx, dy = bx - ax, by - ay
+    if dx == dy == 0:
+        return ((p[0] - ax) ** 2 + (p[1] - ay) ** 2) ** 0.5
+    t = max(0, min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / (dx * dx + dy * dy)))
+    return ((p[0] - ax - t * dx) ** 2 + (p[1] - ay - t * dy) ** 2) ** 0.5
+
+
+def seg_seg_dist(p1, p2, p3, p4):
+    if seg_proper_intersect(p1, p2, p3, p4):
+        return 0.0
+    return min(
+        pt_seg_dist(p1, p3, p4),
+        pt_seg_dist(p2, p3, p4),
+        pt_seg_dist(p3, p1, p2),
+        pt_seg_dist(p4, p1, p2),
+    )
+
+
+def check_terrain_geometry(spec, docs, errors, warnings):
+    """terrain.json のプリセット等高線の幾何検証（validation.json files.terrain.json.contourGeometry）"""
+    terrain = docs.get("terrain.json", {})
+    presets = terrain.get("presets", {})
+    scale = docs.get("scale.json", {})
+    grid_sizes = scale.get("grid", {}).get("sizes", [192])
+    min_grid = min(grid_sizes)
+    lo, hi = spec.get("bounds", [0, 1])
+    min_sep = spec.get("minSeparationNormalized", 0.04)
+    min_vert = spec.get("minVertexSpacing", 0.02)
+    enabled = [c for c in spec.get("checks", [])]
+    for name, preset in presets.items():
+        if name.startswith("_") or not isinstance(preset, dict):
+            continue
+        contours = preset.get("contours", [])
+        for ci, c in enumerate(contours):
+            pts = c.get("points", [])
+            if not pts:
+                errors.append(f"terrain.json presets.{name} c{ci}: 頂点がない")
+                continue
+            # bounds
+            if "bounds" in enabled:
+                for k, pt in enumerate(pts):
+                    if not (lo <= pt[0] <= hi and lo <= pt[1] <= hi):
+                        errors.append(
+                            f"terrain.json presets.{name} c{ci} 頂点{k}: {pt} が範囲 [{lo},{hi}] 外"
+                        )
+            # 最小頂点間隔
+            if "minVertexSpacing" in enabled:
+                for k in range(len(pts) - 1):
+                    d = ((pts[k][0] - pts[k + 1][0]) ** 2 + (pts[k][1] - pts[k + 1][1]) ** 2) ** 0.5
+                    if d < min_vert:
+                        errors.append(
+                            f"terrain.json presets.{name} c{ci} 頂点{k}-{k+1}: "
+                            f"頂点間隔 {d:.4f} < {min_vert}"
+                        )
+            segs = [(pts[k], pts[k + 1]) for k in range(len(pts) - 1)]
+            # 自己交差
+            if "selfIntersection" in enabled:
+                for a in range(len(segs)):
+                    for b in range(a + 1, len(segs)):
+                        if b == a + 1:
+                            continue
+                        if seg_proper_intersect(*segs[a], *segs[b]):
+                            errors.append(
+                                f"terrain.json presets.{name} c{ci}: 自己交差 "
+                                f"(seg{a} x seg{b})"
+                            )
+        # 相互交差・最小距離・標高の単調性
+        for i in range(len(contours)):
+            for j in range(i + 1, len(contours)):
+                A = contours[i].get("points", [])
+                B = contours[j].get("points", [])
+                if not A or not B:
+                    continue
+                ei, ej = contours[i].get("elevation"), contours[j].get("elevation")
+                wi = contours[i].get("width", 1)
+                wj = contours[j].get("width", 1)
+                worst = float("inf")
+                crossed = False
+                for k in range(len(A) - 1):
+                    for l in range(len(B) - 1):
+                        if seg_proper_intersect(A[k], A[k + 1], B[l], B[l + 1]):
+                            crossed = True
+                        worst = min(
+                            worst,
+                            seg_seg_dist(A[k], A[k + 1], B[l], B[l + 1]),
+                        )
+                if crossed:
+                    errors.append(
+                        f"terrain.json presets.{name} c{i} x c{j}: 等高線が交差している"
+                    )
+                elif "minSeparation" in enabled and worst < min_sep:
+                    errors.append(
+                        f"terrain.json presets.{name} c{i}(elev {ei}) x c{j}(elev {ej}): "
+                        f"最小距離 {worst:.4f} < {min_sep}（ブラシ幅 {wi}/{wj} セル、"
+                        f"最小グリッド {min_grid}² で換算）"
+                    )
+        # 標高の単調性（同じプリセット内で、中間標高が最外殻と最高峰の間にあるか）
+        if "elevationOrdering" in enabled and len(contours) >= 3:
+            elevs = [c.get("elevation") for c in contours]
+            lo_e, hi_e = min(elevs), max(elevs)
+            for ci, c in enumerate(contours):
+                e = c.get("elevation")
+                if e not in (lo_e, hi_e) and not (lo_e <= e <= hi_e):
+                    errors.append(
+                        f"terrain.json presets.{name} c{ci}: 標高 {e} が "
+                        f"[{lo_e}, {hi_e}] の範囲外（標高の単調性違反）"
+                    )
+        # 閉ループの入れ子検査
+        # 実地形と同じ規則: 入れ子の閉等高線は「内側ほど高い（山）」か
+        # 「内側ほど低い（盆地・火口）」のどちらか。同一の親の中で両方が混ざる
+        # 場合は実地形でも稀（火山のカルデラなど）なので警告。標高が等しい
+        # 入れ子は縮退しているのでエラー。
+        if "elevationOrdering" in enabled:
+            closed = [
+                (ci, c) for ci, c in enumerate(contours)
+                if c.get("points") and c["points"][0] == c["points"][-1]
+            ]
+            for i, (ci, ca) in enumerate(closed):
+                for cj, cb in closed[i + 1:]:
+                    ea, eb = ca.get("elevation"), cb.get("elevation")
+                    a_in_b = point_in_poly(ca["points"][0], cb["points"])
+                    b_in_a = point_in_poly(cb["points"][0], ca["points"])
+                    if a_in_b or b_in_a:
+                        outer_e, inner_e = (eb, ea) if a_in_b else (ea, eb)
+                        if inner_e == outer_e:
+                            errors.append(
+                                f"terrain.json presets.{name}: 入れ子の等高線の標高が等しい "
+                                f"({outer_e})。縮退している（山か盆地か判別できない）"
+                            )
+            # 同一の親の中で「内側が高い」と「内側が低い」が混ざる場合は警告
+            for ci, c in closed:
+                children = []
+                for cj, cb in closed:
+                    if cj == ci:
+                        continue
+                    if point_in_poly(cb["points"][0], c["points"]):
+                        children.append(cb.get("elevation"))
+                if children:
+                    ce = c.get("elevation")
+                    higher = [e for e in children if e > ce]
+                    lower = [e for e in children if e < ce]
+                    if higher and lower:
+                        warnings.append(
+                            f"terrain.json presets.{name} c{ci}(elev {ce}): 内側に "
+                            f"高い等高線 {higher} と低い等高線 {lower} が混在。"
+                            f"山と盆地が同居する（カルデラ型）。意図的か確認を"
+                        )
+
+
 def main():
     verbose = "-v" in sys.argv
     errors = []
@@ -145,6 +327,11 @@ def main():
                     errors.append(
                         f"{fname}.{fpath}: 値 '{value}' は {ref_file}#{ref_path} に存在しない"
                     )
+
+    # 4.5. 等高線の幾何検証（terrain.json）
+    geo_spec = spec.get("files", {}).get("terrain.json", {}).get("contourGeometry", {})
+    if geo_spec.get("enabled"):
+        check_terrain_geometry(geo_spec, docs, errors, warnings)
 
     # 5. 参照整合性
     for ref in spec.get("references", []):

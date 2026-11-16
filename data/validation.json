@@ -87,6 +87,25 @@
         "presets.island": {
           "type": "object"
         }
+      },
+      "contourGeometry": {
+        "enabled": true,
+        "gridSizesRef": "scale.json#grid.sizes",
+        "minSeparationNormalized": 0.04,
+        "minVertexSpacing": 0.02,
+        "bounds": [
+          0,
+          1
+        ],
+        "checks": [
+          "bounds",
+          "minVertexSpacing",
+          "selfIntersection",
+          "mutualIntersection",
+          "minSeparation",
+          "elevationOrdering"
+        ],
+        "_doc": "terrain.json のプリセット等高線の幾何検証。ルールの定義は terrain.json contourRules を参照。最小グリッド（128²）でブラシ幅を換算し、等高線間の最小距離を検査する"
       }
     },
     "hydrology.json": {

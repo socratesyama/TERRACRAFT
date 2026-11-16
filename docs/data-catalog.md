@@ -9,7 +9,7 @@
 | ファイル | 対象 | 主な出典 |
 | --- | --- | --- |
 | `scale.json` | 世界の物理スケール（グリッド・セルサイズ・時間） | 計画書 §4.1 |
-| `terrain.json` | 地形生成（ラスタライズ、緩和、ridged fBm、プリセット3世界） | 計画書 §4.3; Musgrave et al. 1989 |
+| `terrain.json` | 地形生成（ラスタライズ、緩和、ridged fBm、プリセット3世界、等高線の幾何制約 contourRules） | 計画書 §4.3; Musgrave et al. 1989 |
 | `hydrology.json` | 水文・侵食（浸透、Priority-Flood、Stream Power、土砂輸送、安息角） | Barnes et al. 2014; Whipple & Tucker 1999; Braun & Willett 2013; USDA TR-55 |
 | `climate.json` | 気候（気温減率、地形性降雨、雨陰、アルベド、海の緩和） | Roe 2005; 標準大気 |
 | `ecology-biomes.json` | 生態系（Whittaker のバイオーム気候空間、NPP、植生ダイミクス） | Whittaker 1975; Lieth 1972; Körner 1998 |
@@ -48,6 +48,8 @@ python3 scripts/validate.py      # エラーは exit 1、警告も見るなら -
 - **単位・範囲**: 気温減率・降水量較正・収量・増加率などの重要数値が単位つきで範囲内か
 - **参照整合性**: シナリオの地形プリセット・バイオーム・評価指標、政策の効果先、
   イベントが呼ぶ災害などが、参照先ファイルに実在するか
+- **等高線の幾何**（terrain.json の contourRules）: 等高線の自己交差・相互交差・
+  過度の近接（ブラシ幅の換算）・頂点の範囲外・頂点間隔・入れ子の標高の縮退を検査
 
 JSON を書き換えたら必ずこの検証を通してからコミットしてください。
 
