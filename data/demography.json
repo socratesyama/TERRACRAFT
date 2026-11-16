@@ -1,0 +1,176 @@
+{
+  "_doc": "人口の年齢構成と動態。economy.json の population（マルサス的ロジスティック成長）を、年齢コーホート・出生・死亡・移住の詳細に拡張する層。なぜ若い国は戦争に向かい、老化した国は拡張を止めるか（年齢構成の効果）、都市化と移住の流れ（人口はなぜ移動するか）を表現する。時の流れ: 1 tick = 1年、5歳刻みのコーホートで十分。",
+  "cohorts": {
+    "_doc": "5歳刻みのコーホート（0-4, 5-9, ..., 85+）。男女比は出生時105:100で始まり、死亡率と戦争・出産死亡で変わる",
+    "binSize": {
+      "value": 5,
+      "unit": "歳"
+    },
+    "birthSexRatio": {
+      "value": 105,
+      "unit": "男/女100",
+      "_doc": "出生時の性比。生物学的にほぼ一定"
+    },
+    "fertileAges": {
+      "min": 15,
+      "max": 49,
+      "unit": "歳",
+      "_doc": "女性の生殖可能年齢"
+    }
+  },
+  "fertility": {
+    "_doc": "出生率は食料・豊かさ・戦争で動く。前工業化社会の典型値（自然人口増加率で年0.05〜0.5%）",
+    "totalFertilityRate": {
+      "hunterGatherer": {
+        "value": 5.5,
+        "unit": "人/女性一生",
+        "_doc": "狩猟採集は間隔が長い（移動生活・授乳性無月経）。寿命が短い分、純再生産率は約1"
+      },
+      "preindustrial": {
+        "value": 6.0,
+        "unit": "人/女性一生",
+        "range": [
+          4.5,
+          8.0
+        ],
+        "_doc": "定住農業の出生力。食料余剰と早い断乳で間隔が短くなる"
+      },
+      "naturalFertilityCap": {
+        "value": 8.0,
+        "unit": "人/女性一生",
+        "_doc": "断乳しない場合の生理的上限（フッターガイト（Hutterite）水準）"
+      }
+    },
+    "modifiers": {
+      "foodShortage": {
+        "value": -0.3,
+        "_doc": "飢饉年は妊娠率・出産生存率が下がる（fraction）"
+      },
+      "warDuration": {
+        "value": -0.15,
+        "_doc": "長期戦争は結婚の遅れと離散で出生力を下げる"
+      },
+      "prosperity": {
+        "value": -0.05,
+        "unit": "per 0.1 DI",
+        "_doc": "発展度が上がると出生力は下がる（人口転換 demographic transition の前半）。教育（特に女性）が最大の要因"
+      }
+    },
+    "agePattern": {
+      "model": "Coale-Trussell（自然出生力からの乖離）",
+      "_doc": "15-19歳は低く、20-34歳でピーク、40歳以降急減する年齢パターン。詳細は年齢別出生率テーブルを実装側で持つ"
+    }
+  },
+  "mortality": {
+    "_doc": "死亡率の年齢パターン（Coale-Demeny モデル生命表をベースに簡略化）",
+    "infantMortality": {
+      "preindustrial": {
+        "value": 0.25,
+        "unit": "fraction（0歳での死亡）",
+        "range": [
+          0.15,
+          0.5
+        ],
+        "_doc": "前工業化時代は4人に1人が1歳未満で死亡。清潔な水と医療が最大の変数"
+      },
+      "withCleanWater": {
+        "value": 0.08,
+        "unit": "fraction",
+        "_doc": "清潔な水（湧水・井戸・浄化）だけで大幅に下がる"
+      }
+    },
+    "childMortality": {
+      "value": 0.12,
+      "unit": "fraction（1-5歳での死亡）",
+      "_doc": "幼児死亡。乳児死亡の約半分"
+    },
+    "modelLifeTable": {
+      "family": "Coale-Demeny West",
+      "lifeExpectancyRange": [
+        20,
+        45
+      ],
+      "unit": "歳",
+      "_doc": "前工業化社会の平均寿命は20〜45歳（乳児死亡込み）。実装はモデル生命表の5歳刻み死亡率を簡略化して持つ"
+    },
+    "lifeExpectancyAt20": {
+      "value": 35,
+      "unit": "歳",
+      "_doc": "成人後の期待寿命。乳児死亡を超えた者の平均余命"
+    }
+  },
+  "dynamics": {
+    "urbanization": {
+      "urbanThreshold": {
+        "value": 5000,
+        "unit": "人",
+        "_doc": "都市の定義（集落が都市と呼ばれる人口）"
+      },
+      "urbanSharePreindustrial": {
+        "value": 0.1,
+        "unit": "fraction",
+        "range": [
+          0.03,
+          0.25
+        ],
+        "_doc": "前工業化社会の都市人口比率。古代ローマ〜中世ヨーロッパの典型。灌漑文明（メソポタミア）は高く、森林文明は低い"
+      },
+      "cityGrowthBonus": {
+        "value": 0.005,
+        "unit": "1/年",
+        "_doc": "都市は追加の集住流入で伸びる（経済機会）。ただし衛生と食料輸入が律速"
+      },
+      "urbanMortalityPenalty": {
+        "value": 0.01,
+        "unit": "1/年",
+        "_doc": "都市は不衛生で死亡率が高い（病気の温床）。19世紀の衛生革命まで都市は自然減"
+      }
+    },
+    "migrationFlows": {
+      "_doc": "移住の流れを決める重み（feedback.json famineMigrationWar の定量化）",
+      "pushFactors": {
+        "famine": {
+          "value": 0.5,
+          "unit": "重み"
+        },
+        "war": {
+          "value": 0.4
+        },
+        "disaster": {
+          "value": 0.3
+        }
+      },
+      "pullFactors": {
+        "landAvailability": {
+          "value": 0.3
+        },
+        "urbanWagePremium": {
+          "value": 0.2,
+          "_doc": "都市の賃金プレミアム（Todaro モデル）"
+        },
+        "safety": {
+          "value": 0.2
+        }
+      },
+      "friction": {
+        "distanceDecay": {
+          "value": -0.5,
+          "unit": "指数",
+          "_doc": "移住先選択は重力モデルと同じ距離減衰。遠くの豊かな都市より近くの貧しい町"
+        }
+      },
+      "assimilation": {
+        "value": 0.02,
+        "unit": "fraction/年",
+        "_doc": "移住者の文化的同化率（世代交代で進む）。国家のアイデンティティ形成に使う"
+      }
+    }
+  },
+  "sources": [
+    "Coale, A. & Demeny, P. (1983) Regional Model Life Tables and Stable Populations",
+    "Coale, A. & Trussell, T. (1974) Model fertility schedules, Population Index",
+    "Notestein, F. (1945) Population — the long view（人口転換）",
+    "Todaro, M. (1969) A model of labor migration and urban unemployment in less developed countries",
+    "Livi-Bacci, M. (2017) A Concise History of World Population"
+  ]
+}

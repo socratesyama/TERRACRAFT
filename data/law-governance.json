@@ -1,0 +1,152 @@
+{
+  "_doc": "法・統治・官僚制。戦争（war.json）と内政（economy.json, policy.json）の間にある「制度」の層。国家はなぜ大きくなれるか（官僚制の情報伝達限界）、税はどこまで上がれるか（ラッファー曲線と農民反乱）、征服地はどう統治されるか（直轄 vs 間接統治）を定義する。culture.json の正統性と連動する。",
+  "taxation": {
+    "_doc": "税。国家の収入（treasury）の源泉。税率と徴収効率と反乱リスクのトレードオフ",
+    "landTax": {
+      "rate": {
+        "value": 0.15,
+        "unit": "fraction（農業生産高から）",
+        "range": [
+          0.05,
+          0.4
+        ],
+        "_doc": "地租は前工業化国家の主要収入（生産の10〜20%が典型）。30%を超えると歴史的に農民反乱が頻発"
+      },
+      "collectionEfficiency": {
+        "value": 0.7,
+        "unit": "fraction",
+        "range": [
+          0.3,
+          0.95
+        ],
+        "_doc": "徴収効率。官僚制（technology.json law）が上がると効率が上がる。中世の徴請請負は3〜5割が中抜きされた"
+      }
+    },
+    "tradeTariff": {
+      "rate": {
+        "value": 0.05,
+        "unit": "fraction（関税）",
+        "_doc": "交易路（scenarios.json tradeChokepoint）を押さえる国は関税収入が大きい"
+      },
+      "saltTax": {
+        "value": 0.2,
+        "unit": "fraction",
+        "_doc": "塩税（ocean.json salt）は徴収が容易（専売）で国家の安定収入。専売の行き過ぎは密塩と反乱を生む"
+      }
+    }
+  },
+  "lafferCurve": {
+    "_doc": "税率を上げすぎると経済が縮み税収が減る（と反乱が起きる）",
+    "revenuePeak": {
+      "value": 0.25,
+      "unit": "fraction（農業生産から）",
+      "_doc": "税収のピークは生産の約25%。それ以上は徴収コストと生産の萎縮が上回る"
+    },
+    "rebellionTaxThreshold": {
+      "value": 0.35,
+      "unit": "fraction",
+      "_doc": "税率が35%を超えると反乱リスク（culture.json rebellion）が急上昇する"
+    }
+  },
+  "bureaucracy": {
+    "_doc": "官僚制の情報伝達限界（国家の規模の上限）",
+    "spanOfControl": {
+      "value": 5,
+      "unit": "段階（階層の深さ）",
+      "_doc": "情報（命令と報告）は階層を1つ通るごとに減衰する。深い階層は皇帝の目が届かない",
+      "informationLoss": {
+        "value": 0.1,
+        "unit": "fraction/段階",
+        "_doc": "命令の10%が各階層で失真する。5段階で約40%が正確に伝わらない"
+      }
+    },
+    "governanceRange": {
+      "value": 60,
+      "unit": "セル（首都からの実効統治半径）",
+      "_doc": "war.json supply.operationalReach と並び、国家の規模の上限を決める。道路（policy.json infrastructure）と官僚制（law 技術）で伸びる"
+    },
+    "delegation": {
+      "_doc": "広大な領土は分割統治（封建制）するしかない",
+      "vassalAutonomy": {
+        "value": 0.4,
+        "unit": "fraction",
+        "_doc": "辺境の領主は4割自主に行動する（税の減収と軍の動員の遅れ）"
+      },
+      "vassalLoyalty": {
+        "decay": {
+          "value": -0.02,
+          "unit": "1/年（首都からの距離に比例）",
+          "_doc": "遠い領主は徐々に自立する（正統性が低い王朝ほど速い）"
+        }
+      },
+      "corruption": {
+        "value": 0.05,
+        "unit": "fraction/年（放置時の増加）",
+        "_doc": "腐敗は自然に増える。定期的な粛正（正統性と引き換え）か高給（国庫と引き換え）で抑える"
+      }
+    }
+  },
+  "law": {
+    "_doc": "成文法と司法（technology.json law 技術の効果の詳細）",
+    "contractEnforcement": {
+      "value": 0.5,
+      "unit": "fraction",
+      "_doc": "契約の執行力。信用（掛売り・手形）が働き、遠距離交易（economy.json trade）が伸びる"
+    },
+    "uniformJustice": {
+      "value": 0.2,
+      "unit": "fraction",
+      "_doc": "法の均一な適用は正統性（culture.json legitimacy）を上げ、地方の不満（rebellion）を下げる"
+    },
+    "propertyRights": {
+      "value": 0.3,
+      "unit": "fraction",
+      "_doc": "所有権の保護は投資（灌漑・道路の民間負担）を促す"
+    }
+  },
+  "conquestGovernance": {
+    "_doc": "征服地の統治（war.json termination の講和条件の内政側）",
+    "directRule": {
+      "cost": {
+        "value": 0.05,
+        "unit": "fraction（国庫/年）",
+        "_doc": "直轄は官僚の派遣と駐留軍で高いが、税収と動員は完全に手に入る"
+      },
+      "assimilation": "culture.json culture.assimilationRate に従う（約2%/年）"
+    },
+    "indirectRule": {
+      "cost": {
+        "value": 0.01,
+        "unit": "fraction（国庫/年）",
+        "_doc": "間接統治（現地首長の存続）は安いが、税は取り損ね、反乱の火種が残る"
+      },
+      "loyaltyCeiling": {
+        "value": 0.6,
+        "unit": "fraction",
+        "_doc": "間接統治地の忠誠は6割が上限。同化（時間）か直轄化（コスト）で上げる"
+      }
+    }
+  },
+  "sources": [
+    "Weber, M. (1922) Wirtschaft und Gesellschaft（官僚制の理論）",
+    "Tilly, C. (1992) Coercion, Capital, and European States（戦争が国家を作る）",
+    "Finer, S. (1997) The History of Government（徴税と官僚制の歴史）",
+    "Bodin, J. (1576) Les Six livres de la République（主権と統治形態）"
+  ],
+  "stateCapacity": {
+    "_doc": "国家能力の合成指標（戦争と内政の両方に効く）",
+    "formula": "税収効率 × 官僚制の伝達 × 法の執行 × 正統性",
+    "caps": {
+      "militaryMobilization": {
+        "value": 0.05,
+        "unit": "fraction（人口）",
+        "_doc": "動員可能兵力は人口の5%が上限（農業の季節労働と兵站の制約）。国家能力が高いと6〜8%まで上がる"
+      },
+      "publicWorks": {
+        "value": 0.1,
+        "unit": "fraction（国庫/年）",
+        "_doc": "大規模公共事業（治水・長城・運河）に回せる上限。国庫の1割/年を超える事業は国家を傾かせる（王朝の盛衰）"
+      }
+    }
+  }
+}

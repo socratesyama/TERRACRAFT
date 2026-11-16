@@ -29,6 +29,15 @@ data/                        # 科学データ（本リポジトリの本体）
   events.json                # 外生イベント（火山・疫病・技術革新・気候変動）
   policy.json                # 国家政策（灌漑・備蓄・軍事費・治水）
   observables.json           # 検証可能な観測指標（人口・食料・貿易・戦争）
+  demography.json            # 人口の年齢構成と動態（コーホート・出生・死亡・移住）
+  technology.json            # 技術ツリー（4元素→採掘・戦争→農業・交易→法・遺産）
+  energy.json                # エネルギーと原動力（人力・家畜・薪・水車・風車）
+  ocean.json                 # 海上の物理（漁場・塩・航海・島嶼生物地理）
+  culture.json               # 文化・宗教・正統性・反乱（戦争判断の「心」の層）
+  resources.json             # 資源の分布と採掘（鉱床・枯渇・戦略資源）
+  law-governance.json        # 法・税・官僚制・国家能力（制度の層）
+  naming.json                # 手続き的な命名規則（地名・国名・神話）
+  sensitivity.json           # 感度分析の実験定義（どのパラメータに敏感か）
   validation.json            # data/ 全体の検証ルール（単位・範囲・参照整合性）
 scripts/
   validate.py                # validation.json に従って data/ を機械検証するスクリプト

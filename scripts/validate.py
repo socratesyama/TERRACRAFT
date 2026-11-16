@@ -183,6 +183,16 @@ def main():
             # 参照元がリスト（例: expectedBiomes）なら各要素を検査
             values = value if isinstance(value, list) else [value]
             for v in values:
+                if ref.get("type") == "prefix":
+                    # 'climate.json precip.calibration' → 先頭のファイル名を検査
+                    head = str(v).split("（")[0].split(" ")[0]
+                    if head not in valid:
+                        msg = (
+                            f"{from_file}#{from_path}[{key}]: '{v}' のファイル部分 "
+                            f"'{head}' は data/ に存在しない"
+                        )
+                        (warnings if severity == "warning" else errors).append(msg)
+                    continue
                 if v not in valid:
                     msg = (
                         f"{from_file}#{from_path}[{key}]: '{v}' は "

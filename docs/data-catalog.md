@@ -26,6 +26,15 @@
 | `policy.json` | 国家政策（灌漑、森林保護、備蓄、軍事費、道路・港、検疫、交易奨励、治水） | Boserup 1965; Wittfogel 1957 |
 | `observables.json` | 検証可能な観測指標（人口・食料・貿易・戦争など約45種、単位と集計法つき） | 計画書 §22.11 |
 | `validation.json` | data/ 全体の検証ルール（必須キー・単位・範囲・参照整合性） | 本ドキュメントの設計原則 |
+| `demography.json` | 人口の年齢構成と動態（5歳コーホート、Coale-Demeny 生命表、出生・死亡・都市化・移住） | Coale & Demeny 1983; Coale & Trussell 1974; Todaro 1969 |
+| `technology.json` | 技術ツリー（4元素→採掘・戦争→農業・交易→宗教・経済→法・遺産）と研究・拡散 | Diamond 1997; Mokyr 1990 |
+| `energy.json` | エネルギーと原動力（人力75W、馬1馬力、薪1.5m³/人/年、水車2kW、帆船100t） | Smil 1994; Reynolds 1983 |
+| `ocean.json` | 海上の物理（漁場・塩・航海の季節・海運コスト、島嶼生物地理） | MacArthur & Wilson 1967; Kurlansky 2002 |
+| `culture.json` | 文化・宗教・正統性・同化・反乱（戦争判断の「心」の層） | Weber 1919; Anderson 1983; Tilly 1992 |
+| `resources.json` | 資源の分布と採掘（銅・錫・鉄・金・岩塩の鉱床率と枯渇、再生資源の持続収穫） | Pomeranz 2000; Craddock 1995 |
+| `law-governance.json` | 法・税・官僚制・国家能力（ラッファー曲線、情報伝達限界、征服地統治） | Weber 1922; Tilly 1992; Finer 1997 |
+| `naming.json` | 手続き的な命名規則（地形からの地名生成、国名・神名・王朝名） | 楠原 1998; 山田 1936 |
+| `sensitivity.json` | 感度分析の実験定義（OAT法、8実験+ペア分析、トルネード図の出力） | Saltelli et al. 2008; ten Broeke et al. 2016 |
 
 ## 検証
 

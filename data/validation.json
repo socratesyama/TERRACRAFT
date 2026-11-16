@@ -1,1 +1,519 @@
-{"_doc": "data/ 全JSONの検証ルール。scripts/validate.py がこの定義に従って、必須キー・単位・範囲・参照整合性を機械的に検査する。JSONを書き換えてシミュレーションを拡張するときは、まずこの検証を通すこと。「数値はすべて data/ に集約する」という方針を壊さずに拡張するための安全網。", "version": 1, "requiredFiles": ["scale.json", "terrain.json", "hydrology.json", "climate.json", "ecology-biomes.json", "biology-movement.json", "geology-soils.json", "settlements.json", "disasters.json", "economy.json", "war.json", "nations.json", "scenarios.json", "feedback.json", "events.json", "policy.json", "observables.json"], "files": {"scale.json": {"requiredKeys": ["grid", "cellSize", "maxElevation", "seaLevel", "time", "edgeMode", "sources"], "fields": {"cellSize.value": {"type": "number", "unit": "m", "min": 10, "max": 10000}, "maxElevation.value": {"type": "number", "unit": "m", "min": 100, "max": 10000}, "seaLevel.value": {"type": "number", "min": 0.0, "max": 1.0}, "grid.defaultSize": {"type": "enum", "enumRef": "scale.json#grid.sizes"}}}, "terrain.json": {"requiredKeys": ["rasterize", "relaxation", "noise", "postProcess", "presets", "sources"], "fields": {"noise.octaves": {"type": "integer", "min": 1, "max": 10}, "noise.gain": {"type": "number", "min": 0.1, "max": 0.9}, "presets.island": {"type": "object"}}}, "hydrology.json": {"requiredKeys": ["infiltration", "priorityFlood", "river", "streamPower", "sediment", "slopeStability", "sources"], "fields": {"river.flowThreshold": {"type": "number", "unit": "m/year", "min": 1, "max": 200}}}, "climate.json": {"requiredKeys": ["temperature", "wind", "precip", "moisture", "sunlight", "albedo", "sources"], "fields": {"temperature.environmentalLapseRate.value": {"type": "number", "unit": "K/km", "min": 4, "max": 10}, "temperature.moistAdiabaticLapseRate.value": {"type": "number", "unit": "K/km", "min": 3, "max": 9}, "temperature.dryAdiabaticLapseRate.value": {"type": "number", "unit": "K/km", "min": 8, "max": 12}, "precip.calibration": {"type": "number", "unit": "mm/year", "min": 1000, "max": 100000}, "albedo.ocean": {"type": "number", "min": 0, "max": 1}, "albedo.snow": {"type": "number", "min": 0, "max": 1}}}, "ecology-biomes.json": {"requiredKeys": ["biomes", "npp", "vegetation", "capacity", "hysteresis", "sources"], "fields": {"biomes.whittaker.desert.mapMax": {"type": "number", "min": 0, "max": 2000, "_doc": "単位は mm/year（ecology-biomes.json では _doc 記法のため単位フィールドを持たない）"}}}, "geology-soils.json": {"requiredKeys": ["bedrock", "weathering", "soils", "usle", "sources"]}, "settlements.json": {"requiredKeys": ["suitability", "spawn", "growth", "roads", "sources"]}, "disasters.json": {"requiredKeys": ["flood", "drought", "landslide", "wildfire", "earthquake", "storm", "sources"]}, "economy.json": {"requiredKeys": ["subsistence", "food", "engelsLaw", "trade", "population", "developmentIndex", "sources"], "fields": {"food.requirementPerPerson.value": {"type": "number", "unit": "kg(穀物換算)/人/年", "min": 100, "max": 500}, "food.farmlandYield.value": {"type": "number", "unit": "kg/ha/年", "min": 100, "max": 5000}, "population.growthRate.value": {"type": "number", "unit": "1/年", "min": 0, "max": 0.05}, "population.famineMortality": {"type": "number", "min": 0, "max": 1}, "population.warMortality": {"type": "number", "min": 0, "max": 1}}}, "war.json": {"requiredKeys": ["lanchester", "terrain", "supply", "morale", "termination", "representation", "sources"], "fields": {"lanchester.defenderKillAdvantage.value": {"type": "number", "min": 1, "max": 6}, "supply.operationalReach.value": {"type": "number", "unit": "セル", "min": 10, "max": 500}}}, "nations.json": {"requiredKeys": ["setup", "capital", "potentialBalance", "territory", "personality", "natureDirector", "disasters", "ai", "developmentIndex", "sources"]}, "scenarios.json": {"requiredKeys": ["_doc", "scenarios", "comparison", "sources"], "fields": {"scenarios": {"type": "object"}}}, "feedback.json": {"requiredKeys": ["_doc", "loops", "sources"]}, "events.json": {"requiredKeys": ["_doc", "events", "sources"]}, "policy.json": {"requiredKeys": ["_doc", "policies", "budget", "sources"]}, "observables.json": {"requiredKeys": ["_doc", "metrics", "logging", "sources"]}}, "references": [{"_doc": "シナリオが参照する地形プリセットは terrain.json に実在すること", "from": "scenarios.json#scenarios.*.terrainPreset", "to": "terrain.json#presets", "type": "key"}, {"_doc": "シナリオが期待する主要バイオームは Whittaker 分類に実在すること", "from": "scenarios.json#scenarios.*.expectedBiomes", "to": "ecology-biomes.json#biomes.whittaker", "type": "key"}, {"_doc": "シナリオの評価指標は observables.json に実在すること", "from": "scenarios.json#scenarios.*.metrics", "to": "observables.json#metrics", "type": "key"}, {"_doc": "因果ループの観測対象は observables.json に実在すること", "from": "feedback.json#loops.*.observable", "to": "observables.json#metrics", "type": "key"}, {"_doc": "因果ループの引き金・増幅因子も観測可能な量または既知のモデル層で参照できること", "from": "feedback.json#loops.*.trigger", "to": "observables.json#metrics", "type": "key", "severity": "warning"}, {"_doc": "イベントが呼ぶ災害は disasters.json に実在すること", "from": "events.json#events.*.disaster", "to": "disasters.json", "type": "key"}, {"_doc": "イベントが動かす指標は observables.json に実在すること", "from": "events.json#events.*.effects.*.metric", "to": "observables.json#metrics", "type": "key"}, {"_doc": "政策が影響を与える対象は observables.json に実在すること", "from": "policy.json#policies.*.affects", "to": "observables.json#metrics", "type": "key"}, {"_doc": "政策の前提イベントは events.json に実在すること", "from": "policy.json#policies.*.requiresEvent", "to": "events.json#events", "type": "key"}, {"_doc": "観測指標の参照先ファイルは data/ に実在すること", "from": "observables.json#metrics.*.source", "to": "@requiredFiles", "type": "filename"}], "unitConventions": {"_doc": "docs/data-catalog.md の単位の慣行と対応する。検証は単位文字列の完全一致で行う", "precipitation": "mm/year", "flow": "m/year", "elevation": "正規化0〜1 または m", "time": "1 tick = 1年", "distance": "セル（cellSize = 500 m）"}, "sources": ["docs/data-catalog.md 設計原則（単位を必ず書く・出典を必ず書く）", "JSON Schema の慣行（type/enum/minimum/maximum）を JSON 保守の観点から簡略化した社内形式"]}
+{
+  "_doc": "data/ 全JSONの検証ルール。scripts/validate.py がこの定義に従って、必須キー・単位・範囲・参照整合性を機械的に検査する。JSONを書き換えてシミュレーションを拡張するときは、まずこの検証を通すこと。「数値はすべて data/ に集約する」という方針を壊さずに拡張するための安全網。",
+  "version": 1,
+  "requiredFiles": [
+    "scale.json",
+    "terrain.json",
+    "hydrology.json",
+    "climate.json",
+    "ecology-biomes.json",
+    "biology-movement.json",
+    "geology-soils.json",
+    "settlements.json",
+    "disasters.json",
+    "economy.json",
+    "war.json",
+    "nations.json",
+    "scenarios.json",
+    "feedback.json",
+    "events.json",
+    "policy.json",
+    "observables.json",
+    "demography.json",
+    "technology.json",
+    "energy.json",
+    "ocean.json",
+    "culture.json",
+    "resources.json",
+    "naming.json",
+    "sensitivity.json",
+    "law-governance.json"
+  ],
+  "files": {
+    "scale.json": {
+      "requiredKeys": [
+        "grid",
+        "cellSize",
+        "maxElevation",
+        "seaLevel",
+        "time",
+        "edgeMode",
+        "sources"
+      ],
+      "fields": {
+        "cellSize.value": {
+          "type": "number",
+          "unit": "m",
+          "min": 10,
+          "max": 10000
+        },
+        "maxElevation.value": {
+          "type": "number",
+          "unit": "m",
+          "min": 100,
+          "max": 10000
+        },
+        "seaLevel.value": {
+          "type": "number",
+          "min": 0.0,
+          "max": 1.0
+        },
+        "grid.defaultSize": {
+          "type": "enum",
+          "enumRef": "scale.json#grid.sizes"
+        }
+      }
+    },
+    "terrain.json": {
+      "requiredKeys": [
+        "rasterize",
+        "relaxation",
+        "noise",
+        "postProcess",
+        "presets",
+        "sources"
+      ],
+      "fields": {
+        "noise.octaves": {
+          "type": "integer",
+          "min": 1,
+          "max": 10
+        },
+        "noise.gain": {
+          "type": "number",
+          "min": 0.1,
+          "max": 0.9
+        },
+        "presets.island": {
+          "type": "object"
+        }
+      }
+    },
+    "hydrology.json": {
+      "requiredKeys": [
+        "infiltration",
+        "priorityFlood",
+        "river",
+        "streamPower",
+        "sediment",
+        "slopeStability",
+        "sources"
+      ],
+      "fields": {
+        "river.flowThreshold": {
+          "type": "number",
+          "unit": "m/year",
+          "min": 1,
+          "max": 200
+        }
+      }
+    },
+    "climate.json": {
+      "requiredKeys": [
+        "temperature",
+        "wind",
+        "precip",
+        "moisture",
+        "sunlight",
+        "albedo",
+        "sources"
+      ],
+      "fields": {
+        "temperature.environmentalLapseRate.value": {
+          "type": "number",
+          "unit": "K/km",
+          "min": 4,
+          "max": 10
+        },
+        "temperature.moistAdiabaticLapseRate.value": {
+          "type": "number",
+          "unit": "K/km",
+          "min": 3,
+          "max": 9
+        },
+        "temperature.dryAdiabaticLapseRate.value": {
+          "type": "number",
+          "unit": "K/km",
+          "min": 8,
+          "max": 12
+        },
+        "precip.calibration": {
+          "type": "number",
+          "unit": "mm/year",
+          "min": 1000,
+          "max": 100000
+        },
+        "albedo.ocean": {
+          "type": "number",
+          "min": 0,
+          "max": 1
+        },
+        "albedo.snow": {
+          "type": "number",
+          "min": 0,
+          "max": 1
+        }
+      }
+    },
+    "ecology-biomes.json": {
+      "requiredKeys": [
+        "biomes",
+        "npp",
+        "vegetation",
+        "capacity",
+        "hysteresis",
+        "sources"
+      ],
+      "fields": {
+        "biomes.whittaker.desert.mapMax": {
+          "type": "number",
+          "min": 0,
+          "max": 2000,
+          "_doc": "単位は mm/year（ecology-biomes.json では _doc 記法のため単位フィールドを持たない）"
+        }
+      }
+    },
+    "geology-soils.json": {
+      "requiredKeys": [
+        "bedrock",
+        "weathering",
+        "soils",
+        "usle",
+        "sources"
+      ]
+    },
+    "settlements.json": {
+      "requiredKeys": [
+        "suitability",
+        "spawn",
+        "growth",
+        "roads",
+        "sources"
+      ]
+    },
+    "disasters.json": {
+      "requiredKeys": [
+        "flood",
+        "drought",
+        "landslide",
+        "wildfire",
+        "earthquake",
+        "storm",
+        "sources"
+      ]
+    },
+    "economy.json": {
+      "requiredKeys": [
+        "subsistence",
+        "food",
+        "engelsLaw",
+        "trade",
+        "population",
+        "developmentIndex",
+        "sources"
+      ],
+      "fields": {
+        "food.requirementPerPerson.value": {
+          "type": "number",
+          "unit": "kg(穀物換算)/人/年",
+          "min": 100,
+          "max": 500
+        },
+        "food.farmlandYield.value": {
+          "type": "number",
+          "unit": "kg/ha/年",
+          "min": 100,
+          "max": 5000
+        },
+        "population.growthRate.value": {
+          "type": "number",
+          "unit": "1/年",
+          "min": 0,
+          "max": 0.05
+        },
+        "population.famineMortality": {
+          "type": "number",
+          "min": 0,
+          "max": 1
+        },
+        "population.warMortality": {
+          "type": "number",
+          "min": 0,
+          "max": 1
+        }
+      }
+    },
+    "war.json": {
+      "requiredKeys": [
+        "lanchester",
+        "terrain",
+        "supply",
+        "morale",
+        "termination",
+        "representation",
+        "sources"
+      ],
+      "fields": {
+        "lanchester.defenderKillAdvantage.value": {
+          "type": "number",
+          "min": 1,
+          "max": 6
+        },
+        "supply.operationalReach.value": {
+          "type": "number",
+          "unit": "セル",
+          "min": 10,
+          "max": 500
+        }
+      }
+    },
+    "nations.json": {
+      "requiredKeys": [
+        "setup",
+        "capital",
+        "potentialBalance",
+        "territory",
+        "personality",
+        "natureDirector",
+        "disasters",
+        "ai",
+        "developmentIndex",
+        "sources"
+      ]
+    },
+    "scenarios.json": {
+      "requiredKeys": [
+        "_doc",
+        "scenarios",
+        "comparison",
+        "sources"
+      ],
+      "fields": {
+        "scenarios": {
+          "type": "object"
+        }
+      }
+    },
+    "feedback.json": {
+      "requiredKeys": [
+        "_doc",
+        "loops",
+        "sources"
+      ]
+    },
+    "events.json": {
+      "requiredKeys": [
+        "_doc",
+        "events",
+        "sources"
+      ]
+    },
+    "policy.json": {
+      "requiredKeys": [
+        "_doc",
+        "policies",
+        "budget",
+        "sources"
+      ]
+    },
+    "observables.json": {
+      "requiredKeys": [
+        "_doc",
+        "metrics",
+        "logging",
+        "sources"
+      ]
+    },
+    "demography.json": {
+      "requiredKeys": [
+        "cohorts",
+        "fertility",
+        "mortality",
+        "dynamics",
+        "sources"
+      ]
+    },
+    "technology.json": {
+      "requiredKeys": [
+        "eras",
+        "tiers",
+        "research",
+        "sources"
+      ],
+      "fields": {
+        "tiers": {
+          "type": "object"
+        }
+      }
+    },
+    "energy.json": {
+      "requiredKeys": [
+        "humanPower",
+        "draftAnimals",
+        "biomass",
+        "waterPower",
+        "windPower",
+        "sources"
+      ]
+    },
+    "ocean.json": {
+      "requiredKeys": [
+        "seaSurface",
+        "coastalFishing",
+        "salt",
+        "navigation",
+        "islandBiogeography",
+        "sources"
+      ]
+    },
+    "culture.json": {
+      "requiredKeys": [
+        "legitimacy",
+        "religion",
+        "culture",
+        "rebellion",
+        "sources"
+      ]
+    },
+    "resources.json": {
+      "requiredKeys": [
+        "oreDeposits",
+        "renewable",
+        "extraction",
+        "strategicResources",
+        "sources"
+      ]
+    },
+    "naming.json": {
+      "requiredKeys": [
+        "toponymy",
+        "settlementNames",
+        "nationNames",
+        "personalNames",
+        "mythology",
+        "sources"
+      ]
+    },
+    "sensitivity.json": {
+      "requiredKeys": [
+        "method",
+        "sensitivityClasses",
+        "experiments",
+        "pairwise",
+        "reporting",
+        "sources"
+      ]
+    },
+    "law-governance.json": {
+      "requiredKeys": [
+        "taxation",
+        "lafferCurve",
+        "bureaucracy",
+        "law",
+        "conquestGovernance",
+        "stateCapacity",
+        "sources"
+      ]
+    }
+  },
+  "references": [
+    {
+      "_doc": "シナリオが参照する地形プリセットは terrain.json に実在すること",
+      "from": "scenarios.json#scenarios.*.terrainPreset",
+      "to": "terrain.json#presets",
+      "type": "key"
+    },
+    {
+      "_doc": "シナリオが期待する主要バイオームは Whittaker 分類に実在すること",
+      "from": "scenarios.json#scenarios.*.expectedBiomes",
+      "to": "ecology-biomes.json#biomes.whittaker",
+      "type": "key"
+    },
+    {
+      "_doc": "シナリオの評価指標は observables.json に実在すること",
+      "from": "scenarios.json#scenarios.*.metrics",
+      "to": "observables.json#metrics",
+      "type": "key"
+    },
+    {
+      "_doc": "因果ループの観測対象は observables.json に実在すること",
+      "from": "feedback.json#loops.*.observable",
+      "to": "observables.json#metrics",
+      "type": "key"
+    },
+    {
+      "_doc": "因果ループの引き金・増幅因子も観測可能な量または既知のモデル層で参照できること",
+      "from": "feedback.json#loops.*.trigger",
+      "to": "observables.json#metrics",
+      "type": "key",
+      "severity": "warning"
+    },
+    {
+      "_doc": "イベントが呼ぶ災害は disasters.json に実在すること",
+      "from": "events.json#events.*.disaster",
+      "to": "disasters.json",
+      "type": "key"
+    },
+    {
+      "_doc": "イベントが動かす指標は observables.json に実在すること",
+      "from": "events.json#events.*.effects.*.metric",
+      "to": "observables.json#metrics",
+      "type": "key"
+    },
+    {
+      "_doc": "政策が影響を与える対象は observables.json に実在すること",
+      "from": "policy.json#policies.*.affects",
+      "to": "observables.json#metrics",
+      "type": "key"
+    },
+    {
+      "_doc": "政策の前提イベントは events.json に実在すること",
+      "from": "policy.json#policies.*.requiresEvent",
+      "to": "events.json#events",
+      "type": "key"
+    },
+    {
+      "_doc": "観測指標の参照先ファイルは data/ に実在すること",
+      "from": "observables.json#metrics.*.source",
+      "to": "@requiredFiles",
+      "type": "filename"
+    },
+    {
+      "_doc": "技術の前提技術は technology.json 内に実在すること",
+      "from": "technology.json#tiers.*.requires.*",
+      "to": "technology.json#tiers",
+      "type": "key"
+    },
+    {
+      "_doc": "技術の効果が動かす指標は observables.json に実在すること",
+      "from": "technology.json#tiers.*.effects.*.metric",
+      "to": "observables.json#metrics",
+      "type": "key"
+    },
+    {
+      "_doc": "感度分析の出力指標は observables.json に実在すること",
+      "from": "sensitivity.json#method.measure.outputs.*",
+      "to": "observables.json#metrics",
+      "type": "key"
+    },
+    {
+      "_doc": "感度分析の実験が指すパラメータのファイル部分は data/ に実在すること（\"climate.json precip.calibration\" → climate.json）",
+      "from": "sensitivity.json#experiments.*.parameter",
+      "to": "@requiredFiles",
+      "type": "prefix",
+      "severity": "warning"
+    }
+  ],
+  "unitConventions": {
+    "_doc": "docs/data-catalog.md の単位の慣行と対応する。検証は単位文字列の完全一致で行う",
+    "precipitation": "mm/year",
+    "flow": "m/year",
+    "elevation": "正規化0〜1 または m",
+    "time": "1 tick = 1年",
+    "distance": "セル（cellSize = 500 m）"
+  },
+  "sources": [
+    "docs/data-catalog.md 設計原則（単位を必ず書く・出典を必ず書く）",
+    "JSON Schema の慣行（type/enum/minimum/maximum）を JSON 保守の観点から簡略化した社内形式"
+  ]
+}
