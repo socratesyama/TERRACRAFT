@@ -1,0 +1,56 @@
+{
+  "_doc": "実行・性能・描画・履歴に関する定数（計画書 §10〜§13）。科学モデルの定数ではなく、シミュレーションを Worker で回し画面に出すための運用上の値。実装コードに数値を直書きしないため、計画書に散在していた値をここへ集約する。すべて出発点であり、実測で調整する。",
+  "tick": {
+    "budgetMs": 33,
+    "unit": "ms",
+    "_doc": "1 tick の目標時間（計画書§10.1）。直近 degradeWindowTicks の平均がこれを超えたら段階的に劣化させる"
+  },
+  "snapshot": {
+    "maxHz": 10,
+    "poolSize": 3,
+    "_doc": "スナップショットの最大発行頻度（Hz）とバッファプールの本数（§11）。poolSize は描画中・転送中・Worker 作業中の3本を想定した実装側の初期値"
+  },
+  "worker": {
+    "sliceMs": 12,
+    "unit": "ms",
+    "_doc": "Worker が1回のバッチで連続して計算する上限時間（§10.4）。超えたら手を止め、届いた Op や停止命令を先に処理する"
+  },
+  "playback": {
+    "speeds": [1, 4, 16],
+    "ticksPerSecondAt1x": 5,
+    "_doc": "再生速度の倍率と、1x のときの tick/秒（§10.2）"
+  },
+  "schedule": {
+    "erosionIntervalTicks": 4,
+    "erosionIntervalDegradedTicks": 8,
+    "vegetationIntervalDegradedTicks": 2,
+    "climateSeasonTicks": 8,
+    "moistureBiomeIntervalTicks": 2,
+    "degradeWindowTicks": 10,
+    "_doc": "段階ごとの実行間隔（§10.1, §10.3）。Degraded は高速モードに入ったときの間隔。Op の適用は決して飛ばさない"
+  },
+  "hash": {
+    "quantizeScale": 100000,
+    "_doc": "配列ハッシュ（FNV-1a）の前に浮動小数を丸める倍率（§15.2）。小数第5位まで一致すれば同じ世界とみなし、ブラウザ間の微小な差を吸収する"
+  },
+  "history": {
+    "snapshotRing": 8,
+    "snapshotEveryTicks": 50,
+    "_doc": "Undo 用スナップショットのリング本数と間隔（§9.3）"
+  },
+  "events": {
+    "ringMax": 1000,
+    "dedupeTicks": 10,
+    "causeWindowTicks": 40,
+    "_doc": "因果ログ（§9.4）。ringMax 件のリング、同種イベントは dedupeTicks に1回、Op の causeId を付ける窓は causeWindowTicks"
+  },
+  "render": {
+    "treeInstanceMax": 12000,
+    "devicePixelRatioMax": 2,
+    "devicePixelRatioMaxMobile": 1.5,
+    "previewGridSize": 64,
+    "previewThrottleMs": 100,
+    "_doc": "描画の上限（§12）。木のインスタンス数、devicePixelRatio の上限、等高線を描く間の低解像度プレビュー（§11）"
+  },
+  "sources": ["docs/implementation-plan.md §9.3, §9.4, §10, §11, §12, §15.2"]
+}

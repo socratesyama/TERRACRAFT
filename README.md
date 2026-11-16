@@ -38,6 +38,7 @@ data/                        # 科学データ（本リポジトリの本体）
   law-governance.json        # 法・税・官僚制・国家能力（制度の層）
   naming.json                # 手続き的な命名規則（地名・国名・神話）
   sensitivity.json           # 感度分析の実験定義（どのパラメータに敏感か）
+  runtime.json               # 実行・性能・描画の運用定数（tick予算・スナップショット頻度など）
   validation.json            # data/ 全体の検証ルール（単位・範囲・参照整合性）
 scripts/
   validate.py                # validation.json に従って data/ を機械検証するスクリプト

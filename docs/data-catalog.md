@@ -35,6 +35,7 @@
 | `law-governance.json` | 法・税・官僚制・国家能力（ラッファー曲線、情報伝達限界、征服地統治） | Weber 1922; Tilly 1992; Finer 1997 |
 | `naming.json` | 手続き的な命名規則（地形からの地名生成、国名・神名・王朝名） | 楠原 1998; 山田 1936 |
 | `sensitivity.json` | 感度分析の実験定義（OAT法、8実験+ペア分析、トルネード図の出力） | Saltelli et al. 2008; ten Broeke et al. 2016 |
+| `runtime.json` | 実行・性能・描画・履歴の運用定数（tick予算33ms、スナップショット10Hz、Workerの時間切れ12ms、再生速度、実行間隔、ハッシュの量子化） | 計画書 §9〜§15 |
 
 ## 検証
 

@@ -27,7 +27,8 @@
     "resources.json",
     "naming.json",
     "sensitivity.json",
-    "law-governance.json"
+    "law-governance.json",
+    "runtime.json"
   ],
   "files": {
     "scale.json": {
@@ -433,6 +434,39 @@
         "stateCapacity",
         "sources"
       ]
+    },
+    "runtime.json": {
+      "requiredKeys": [
+        "tick",
+        "snapshot",
+        "worker",
+        "playback",
+        "schedule",
+        "hash",
+        "history",
+        "events",
+        "render",
+        "sources"
+      ],
+      "fields": {
+        "tick.budgetMs": {
+          "type": "number",
+          "unit": "ms",
+          "min": 1,
+          "max": 1000
+        },
+        "snapshot.maxHz": {
+          "type": "number",
+          "min": 1,
+          "max": 60
+        },
+        "worker.sliceMs": {
+          "type": "number",
+          "unit": "ms",
+          "min": 1,
+          "max": 100
+        }
+      }
     }
   },
   "references": [
