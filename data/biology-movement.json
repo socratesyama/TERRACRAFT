@@ -1,0 +1,311 @@
+{
+  "_doc": "生物の行動圏・移動・行動学の定数。人と動物の移動は、行動圏のアロメトリー（体重スケーリング）、日中移動距離、分散（natal dispersal）、least-cost 経路選択で決める。",
+  "allometry": {
+    "_doc": "哺乳類の行動圏面積 H は体重 M のべき乗にスケールする: H = a·M^b。代謝率は M^0.75（Kleiber）だが、行動圏はそれより急に増える。Harestad & Bunnell (1979) の回帰（H: km², M: kg）",
+    "herbivore": {
+      "a": 0.002,
+      "b": 1.02,
+      "_doc": "草食動物。例: 600 kg のヘラジカ → 約1.4 km²"
+    },
+    "omnivore": {
+      "a": 0.059,
+      "b": 0.92,
+      "_doc": "雑食動物"
+    },
+    "carnivore": {
+      "a": 0.11,
+      "b": 1.36,
+      "_doc": "肉食動物。同体重の草食動物より行動圏が大幅に大きい（獲物が希薄で分散するため）"
+    },
+    "dayRangeExponent": 0.25,
+    "dayRangeDoc": "日中移動距離 D ∝ M^0.25（Jetz et al. 2004）。体が大きいほど1日で行動圏を横断する割合が小さい: D/H^0.5 ∝ M^−0.25",
+    "metabolicExponent": 0.75,
+    "metabolicDoc": "基礎代謝率 B ∝ M^0.75。個体当たりの食料必要量のスケーリング"
+  },
+  "exampleHomeRanges": {
+    "_doc": "検算用の代表値（km²）",
+    "wolf60kg": 25,
+    "deer100kg": 3,
+    "rabbit2kg": 0.006,
+    "lion190kg": 180
+  },
+  "movement": {
+    "_doc": "移動速度と日当たり移動距離",
+    "mammalWalkSpeed": {
+      "value": 5,
+      "unit": "km/h"
+    },
+    "mammalDailyTravel": {
+      "min": 5,
+      "max": 30,
+      "unit": "km/day",
+      "_doc": "草食動物の採食移動（日活动距離は行動圏径の一部）"
+    },
+    "carnivoreHuntTravel": {
+      "value": 15,
+      "unit": "km/day",
+      "_doc": "肉食動物の探索移動。行動圏を巡回する"
+    },
+    "birdFlySpeed": {
+      "min": 40,
+      "max": 80,
+      "unit": "km/h"
+    },
+    "birdMigrationDaily": {
+      "min": 100,
+      "max": 500,
+      "unit": "km/day",
+      "_doc": "渡り鳥の1日移動距離"
+    }
+  },
+  "dispersal": {
+    "_doc": "出生分散（natal dispersal）。若い個体が生まれた行動圏の外へ出て行く距離",
+    "homeRangeDiameterMultiples": {
+      "min": 1,
+      "max": 10,
+      "_doc": "分散距離は行動圏の直径の1〜10倍が典型的（Bowman et al. 2002: 分散距離 ≈ 定数 × 行動圏面積^0.5）"
+    },
+    "kernel": "exponential",
+    "kernelDoc": "分散カーネルは指数型。遠くほど指数的に稀だが、まれに長距離分散が起きる（個体群の再定着・島への到達）",
+    "barrierEffect": {
+      "water": 0.1,
+      "highMountain": 0.2,
+      "desert": 0.3,
+      "_doc": "地形バリアで移動確率が下がる。水域は大部分の陸棲哺乳類が越えられない"
+    },
+    "leastCost": {
+      "_doc": "動物はエネルギー費用が最小の経路を選ぶ（energy landscape, 最適採餌理論）。移動コスト = 距離 × 傾斜ペナルティ × バリア係数。侵食谷・河川敷は移動回廊になる"
+    }
+  },
+  "migration": {
+    "_doc": "季節移動。植生・雪・水の季節変化に応じて行動圏を移す",
+    "trigger": {
+      "snowLine": 0.5,
+      "vegetationThreshold": 0.3,
+      "_doc": "高山の積雪線が下がる/植生が枯れると越冬地（低地）へ移動する"
+    },
+    "fidelity": {
+      "value": 0.8,
+      "_doc": "移動先は過去に使った場所を優先する（site fidelity）。行動学で広く観察される性質"
+    }
+  },
+  "human": {
+    "_doc": "人間の移動能力（徒歩・舟運・海運）。集落の立地と交易路、軍の進軍速度に使う",
+    "walkSpeed": {
+      "value": 5,
+      "unit": "km/h",
+      "_doc": "平地・無負荷"
+    },
+    "loadedWalkSpeed": {
+      "value": 3.5,
+      "unit": "km/h",
+      "_doc": "荷物あり（古代の軍隊・交易人）"
+    },
+    "dailyMarch": {
+      "value": 25,
+      "unit": "km/day",
+      "range": [
+        20,
+        40
+      ]
+    },
+    "riverBoatDownstream": {
+      "value": 80,
+      "unit": "km/day",
+      "range": [
+        40,
+        150
+      ],
+      "_doc": "川の下りは舟運で安く速い"
+    },
+    "riverBoatUpstream": {
+      "value": 15,
+      "unit": "km/day",
+      "range": [
+        5,
+        30
+      ],
+      "_doc": "遡行は引き船で遅い"
+    },
+    "sailDaily": {
+      "value": 100,
+      "unit": "km/day",
+      "range": [
+        50,
+        200
+      ],
+      "_doc": "帆船の外洋航行"
+    },
+    "cartRoad": {
+      "value": 30,
+      "unit": "km/day",
+      "_doc": "馬車・牛車（良路）"
+    },
+    "slopePenalty": {
+      "threshold": 0.25,
+      "_doc": "急坂で徒歩速度が半減する勾配"
+    }
+  },
+  "sources": [
+    "Harestad, A. & Bunnell, F. (1979) Home range and body weight — Ecology 60(2)",
+    "Jetz, W. et al. (2004) The scaling of animal space use — Science",
+    "Noonan, M. et al. (2020) Effects of body size on estimation of mammalian area requirements — Conservation Biology",
+    "Bowman, J. et al. (2002) A review of methods for estimating natal dispersal",
+    "Kleiber, M. (1932) Body size and metabolism",
+    "Stephens, D. & Krebs, J. (1986) Foraging Theory",
+    "Elton, C. & Nicholson, M. (1942) The ten-year cycle in numbers of the lynx in Canada (J. Anim. Ecol.)",
+    "Lindeman, R. (1942) The trophic-dynamic aspect of ecology (Ecology 23: 399-418)"
+  ],
+  "speciesTable": {
+    "_doc": "実装に直接使える動物種テーブル。行動圏は allometry の回帰式 H=a·M^b から計算し、密度は実測の代表値。massKg は成獣メスの平均（オスより小さい）",
+    "species": [
+      {
+        "id": "sika-deer",
+        "nameJa": "ニホンジカ",
+        "guild": "herbivore",
+        "massKg": 50,
+        "densityPerKm2": {
+          "min": 5,
+          "max": 30
+        },
+        "social": "群れ（繁殖期は分散）",
+        "migration": "resident",
+        "breedingR": 0.35,
+        "_doc": "日本の森林限界の代表種。密度が高すぎると森林の更新を妨げる（食害）"
+      },
+      {
+        "id": "elk",
+        "nameJa": "ワピチ",
+        "guild": "herbivore",
+        "massKg": 300,
+        "densityPerKm2": {
+          "min": 2,
+          "max": 10
+        },
+        "social": "大きな群れ",
+        "migration": "altitudinal",
+        "breedingR": 0.25,
+        "_doc": "夏は高山草原、冬は渓谷へ垂直移動（altitudinal migration）。雪の深さが移動を決める"
+      },
+      {
+        "id": "reindeer",
+        "nameJa": "トナカイ",
+        "guild": "herbivore",
+        "massKg": 150,
+        "densityPerKm2": {
+          "min": 1,
+          "max": 5
+        },
+        "social": "大群れ",
+        "migration": "longDistance",
+        "breedingR": 0.25,
+        "breedingRDoc": "繁殖率 = 1年あたりの個体群増加率",
+        "_doc": "数百kmの長距離移動。季節の牧草地を追う（計画書§7.6の季節移動の代表）"
+      },
+      {
+        "id": "bison",
+        "nameJa": "バイソン",
+        "guild": "herbivore",
+        "massKg": 600,
+        "densityPerKm2": {
+          "min": 1,
+          "max": 8
+        },
+        "social": "大群れ",
+        "migration": "resident",
+        "breedingR": 0.18,
+        "_doc": "草原の大型草食獣。群れの移動が草原の植生サイクルを作る"
+      },
+      {
+        "id": "wild-boar",
+        "nameJa": "イノシシ",
+        "guild": "omnivore",
+        "massKg": 60,
+        "densityPerKm2": {
+          "min": 3,
+          "max": 20
+        },
+        "social": "母系群れ",
+        "migration": "resident",
+        "breedingR": 0.6,
+        "_doc": "繁殖力が非常に高い（年2回出産も）。雑食で土壌動物・木の実・農作物を食べ、農業被害・森林の撹乱の原因になる"
+      },
+      {
+        "id": "brown-bear",
+        "nameJa": "ヒグマ",
+        "guild": "omnivore",
+        "massKg": 200,
+        "densityPerKm2": {
+          "min": 0.05,
+          "max": 0.5
+        },
+        "social": "単独",
+        "migration": "resident",
+        "breedingR": 0.12,
+        "_doc": "雑食（果実・魚・獣）。行動圏は数百km²に及ぶ。冬眠する"
+      },
+      {
+        "id": "wolf",
+        "nameJa": "オオカミ",
+        "guild": "carnivore",
+        "massKg": 40,
+        "densityPerKm2": {
+          "min": 0.02,
+          "max": 0.1
+        },
+        "social": "パック（縦社会）",
+        "migration": "resident",
+        "breedingR": 0.2,
+        "_doc": "パックで縄張りを持ち、獲物（シカ・ワピチ）を追って季節移動に追随する。数値的には0.02〜0.1頭/km²"
+      },
+      {
+        "id": "lynx",
+        "nameJa": "オオヤマネコ",
+        "guild": "carnivore",
+        "massKg": 20,
+        "densityPerKm2": {
+          "min": 0.1,
+          "max": 0.5
+        },
+        "social": "単独",
+        "migration": "resident",
+        "breedingR": 0.3,
+        "_doc": "単独行動の捕食者。獲物（野ウサギ）の個体数サイクルに同期する"
+      },
+      {
+        "id": "red-fox",
+        "nameJa": "アカギツネ",
+        "guild": "omnivore",
+        "massKg": 5,
+        "densityPerKm2": {
+          "min": 0.5,
+          "max": 3
+        },
+        "social": "単独（子育て期は家族群）",
+        "migration": "resident",
+        "breedingR": 0.5,
+        "_doc": "小型的な雑食捕食者。人里近くにも出る（都市適応）"
+      },
+      {
+        "id": "mountain-hare",
+        "nameJa": "ヤマウサギ",
+        "guild": "herbivore",
+        "massKg": 2.5,
+        "densityPerKm2": {
+          "min": 5,
+          "max": 50
+        },
+        "social": "単独",
+        "migration": "resident",
+        "breedingR": 1.5,
+        "_doc": "捕食者−被捕食者の個体数サイクル（約10年周期のロトカ・ヴォルテラ振動）の代表種"
+      }
+    ],
+    "populationDynamics": {
+      "predatorPreyCycleDoc": "捕食者−被捕食者は Lotka–Volterra 型で振動する。ウサギとオオヤマネコの約10年周期は北半球でよく知られる（Elton & Nicholson 1942）",
+      "carryingCapacityRule": "草食獣の上限は植生の環境収容力 Kcap、肉食獣の上限は獲物の総バイオマス×転換効率0.1（エネルギー・ピラミッド: 栄養段階1つで約10分の1）",
+      "trophicEfficiency": 0.1,
+      "trophicEfficiencyDoc": "栄養段階間のエネルギー転換効率の世界平均（Lindeman 1942）"
+    }
+  }
+}

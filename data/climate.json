@@ -1,0 +1,83 @@
+{
+  "_doc": "気候エンジンの物理定数。気温は標高・緯度・海からの距離・季節で決める。降水は地形性降雨（風上で上昇冷却→凝結、風下で雨陰）として計算する。",
+  "temperature": {
+    "environmentalLapseRate": {
+      "value": 6.5,
+      "unit": "K/km",
+      "_doc": "標準大気の気温減率。对流圏平均。計画書§7.2"
+    },
+    "dryAdiabaticLapseRate": {
+      "value": 9.8,
+      "unit": "K/km",
+      "_doc": "乾燥断熱減率。風上斜面で空気塊が冷える理論上限。実効的には湿潤減率が効く"
+    },
+    "moistAdiabaticLapseRate": {
+      "value": 5.0,
+      "unit": "K/km",
+      "_doc": "湿潤断熱減率。凝結熱の放出で緩やか。実効値 4〜9 K/km の中間（Roe 2005）"
+    },
+    "latitudeGradient": {
+      "value": 12,
+      "unit": "K",
+      "_doc": "世界の北端と南端の気温差"
+    },
+    "maritimeModeration": {
+      "strength": 0.2,
+      "decayPerCell": 0.12,
+      "lutMax": 64,
+      "_doc": "海の緩和 = (T海 − T) × strength × LUT(海からの距離)。比熱の差（水 4.18 kJ/kgK vs 土壌 ~1 kJ/kgK）により海岸線の気温は海に引っ張られる。距離0〜64セルのLUTで指数減衰"
+    },
+    "vegetationCooling": {
+      "value": 0.5,
+      "unit": "K",
+      "_doc": "植生による冷却（蒸散の潜熱）。平滑化後に小さく加えるのみ（正帰還防止）"
+    },
+    "seasonalAmplitude": {
+      "base": 4,
+      "unit": "K",
+      "_doc": "季節振幅の基本値。内陸ほど大きく、海沿いほど小さくする"
+    }
+  },
+  "wind": {
+    "directions": 8,
+    "_doc": "風向は45°刻みの8方向"
+  },
+  "precip": {
+    "humidity0": 0.5,
+    "evapGain": 0.08,
+    "baseRainFrac": 0.06,
+    "liftK": 2.2,
+    "qMax": 1.0,
+    "_doc": "地形性降雨のパラメータ。風上の縁から湿った空気を運び、上昇(lift)で凝結させ、風下側は乾く＝雨陰。rain = min(q, q × (baseRainFrac + lift))。liftK×上昇量 が凝結率を決める。実測では山脈の風上側で降水量が数倍になり、風下側の雨陰は山脈幅の数倍〜10倍程度続く（Roe 2005）",
+    "calibration": 25000,
+    "calibrationDoc": "生の湿度単位 → mm/年 の較正係数。風上斜面で約1500〜2500mm、大陸内部の雨陰で約50〜150mmになるよう調整（Roe 2005 の典型的な地形性降水量の比に対応）",
+    "qFloor": 0.08,
+    "qFloorDoc": "空気塊の最低湿度。大陸内部でもわずかに降水がある（実地球のステップ気候 200〜400mm 相当）",
+    "unit": "mm/year"
+  },
+  "moisture": {
+    "precipWeight": 1.0,
+    "waterProximityWeight": 0.3,
+    "smoothPasses": 2,
+    "_doc": "水分 = clamp01(降水×k1 + 川・湖の近さ×k2) → 3×3平滑化2回",
+    "precipWeightDoc": "水分 = clamp01(降水mm/4000 × precipWeight + 水域近接 × waterProximityWeight)。moisture 0.0625 ≒ 250mm（砂漠線）と対応する"
+  },
+  "sunlight": {
+    "ambient": 0.4,
+    "direct": 0.6,
+    "_doc": "日照 = 0.4 + 0.6 × max(0, dot(法線, 太陽方向))。北斜面は暗く成長が遅い"
+  },
+  "albedo": {
+    "ocean": 0.06,
+    "forest": 0.12,
+    "grassland": 0.2,
+    "desert": 0.4,
+    "snow": 0.8,
+    "_doc": "参考: 表面アルベド。砂漠は日射をよく反射し温暖化しにくいが、夜は急冷する（放射冷却）"
+  },
+  "sources": [
+    "Roe, G. (2005) Orographic Precipitation, Annual Review of Earth and Planetary Sciences",
+    "NOAA/NASA — Standard Atmosphere (lapse rate), surface albedo tables",
+    "Köppen, W. (1936) Das geographische System der Klimate（気候区分の原典）"
+  ]
+}

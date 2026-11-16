@@ -1,0 +1,99 @@
+{
+  "_doc": "経済エンジンの定数。経済学的な標準的な知見（リカードの比較優位、貿易の重力モデル、輸送コストのモード格差、マルサス的動態、エンゲル係数）に基づく。",
+  "subsistence": {
+    "_doc": "生業様式ごとの人口密度（人/km²）。地形（平野・森林・乾燥地）がそのまま国の潜在力になる",
+    "hunterGatherer": 0.05,
+    "pastoral": 3,
+    "shiftingCultivation": 20,
+    "intensiveAgriculture": 150,
+    "irrigatedRice": 400,
+    "note": "採集狩猟 < 遊牧 < 焼畑 < 集約農業 < 灌漑稲作。肥沃な平野は人口上限が桁違いに高い（Boserup 1965）"
+  },
+  "food": {
+    "requirementPerPerson": {
+      "value": 230,
+      "unit": "kg(穀物換算)/人/年",
+      "_doc": "2,000〜2,500 kcal/日 → 穀物換算。加工・貯蔵損失込み"
+    },
+    "farmlandYield": {
+      "value": 700,
+      "unit": "kg/ha/年",
+      "range": [400, 1500],
+      "_doc": "前工業化時代の穀物収量（種子比 1:3〜1:8）。灌漑・品種・技術で向上する"
+    },
+    "farmRadiusFactor": 2,
+    "farmRadiusDoc": "農地は集落の周囲に円形に広がる。半径（セル）は人口から決まる",
+    "storageLoss": 0.1,
+    "storageLossDoc": "貯蔵損失（fraction/year）。備蓄は減っていく"
+  },
+  "engelsLaw": {
+    "foodBudgetShare": {
+      "subsistence": 0.7,
+      "developed": 0.3,
+      "_doc": "エンゲルの法則: 所得が上がるほど食料への支出割合は下がる。食料需要の価格弾力性は低い（非弾力的）"
+    }
+  },
+  "trade": {
+    "_doc": "貿易は重力モデル＋輸送コストで決まる",
+    "gravityExponent": 1.0,
+    "gravityDoc": "T ∝ (経済規模_i × 経済規模_j) / 距離^θ。θ ≈ 1 が国際貿易の標準推計",
+    "price": {
+      "referenceFactor": 0.5,
+      "elasticity": {
+        "value": -0.3,
+        "_doc": "価格 = 基準 × (需要/供給)^0.5（上下限つき）。食料は必需品なので需要は価格に鈍感"
+      }
+    },
+    "transportCost": {
+      "_doc": "輸送コストの相対値（トンkmあたり、陸運=1.0 で正規化）。海運は陸運の約1/10（Glaeser & Kohlhase 2004; Clark et al. 2004: 1000km輸送で海運 190ドル vs 陸運 1,380ドル/コンテナ）",
+      "road": 1.0,
+      "riverDownstream": 0.15,
+      "riverUpstream": 0.5,
+      "sea": 0.1,
+      "rail": 0.3,
+      "portFixed": 5,
+      "portFixedDoc": "港の積み替えには固定費がかかる。短距離では陸運が勝つ"
+    },
+    "market": {
+      "tradeInterval": 4,
+      "unit": "tick",
+      "_doc": "取引は4年ごと（協定ごと）にまとめて実行"
+    },
+    "resourceProduction": {
+      "food": "農地×収量",
+      "wood": "森林×成長量",
+      "ore": "山岳セル×鉱脈係数",
+      "wealth": "都市・交易から"
+    }
+  },
+  "population": {
+    "_doc": "人口は食料で制限されたロジスティック成長",
+    "growthRate": {
+      "value": 0.02,
+      "unit": "1/年",
+      "_doc": "マルサス的条件下での長期実質増加率。豊かになると出生率は下がる傾向（demographic transition）"
+    },
+    "famineMortality": 0.15,
+    "famineDoc": "食料不足の年に出る死亡率。災害への強さ（備蓄・交易）で緩和される",
+    "warMortality": 0.05,
+    "warDoc": "戦時の人口減少率"
+  },
+  "developmentIndex": {
+    "_doc": "発展度 DI の重み（計画書§22.6）。軍事力そのものは加点しない",
+    "population": 15,
+    "foodSecurity": 15,
+    "economy": 20,
+    "infrastructure": 10,
+    "environment": 15,
+    "disasterResilience": 10,
+    "technology": 10,
+    "diplomacy": 5
+  },
+  "sources": [
+    "Glaeser, E. & Kohlhase, J. (2004) Cities, regions and the decline of transport costs — Papers in Regional Science",
+    "Clark, X. et al. (2004) Port efficiency, maritime transport costs and bilateral trade",
+    "Boserup, E. (1965) The Conditions of Agricultural Growth",
+    "Malthus, T. (1798) An Essay on the Principle of Population",
+    "Engel, E. (1857) Die Productions- und Consumtionsverhältnisse des Königreichs Sachsen"
+  ]
+}

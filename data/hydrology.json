@@ -1,0 +1,79 @@
+{
+  "_doc": "水文エンジンの物理定数。流量は年間平均の定常ルーティング（D8 + Priority-Flood）で求める。河川侵食は Stream Power Law、土砂は流送能力式で運ぶ。",
+  "infiltration": {
+    "base": 0.15,
+    "perVegetation": 0.35,
+    "formulaDoc": "浸透率 = base + perVegetation × 植生密度（0〜1）。流出(m/年) = 降水(mm/年)/1000 × (1 − 浸透)。森林ほど地表流出が減る",
+    "curveNumbers": {
+      "landcover": {
+        "forest": {
+          "cn": 60,
+          "runoffFraction": 0.1,
+          "_doc": "密林: 透水性が高く流出少ない"
+        },
+        "grassland": {
+          "cn": 72,
+          "runoffFraction": 0.2
+        },
+        "farmland": {
+          "cn": 81,
+          "runoffFraction": 0.3,
+          "_doc": "耕起地: 表土が露出し流出増"
+        },
+        "urban": {
+          "cn": 92,
+          "runoffFraction": 0.5,
+          "_doc": "都市: 不透水面が卓越"
+        }
+      },
+      "doc": "参考: USDA SCS Curve Number 法（TR-55, 1986）の中間湿度条件の代表値。実装では簡略式（base + perVegetation×植生）を使う"
+    }
+  },
+  "priorityFlood": {
+    "eps": 1e-05,
+    "epsDoc": "平坦部にも仮想勾配を与え、必ず出口へ流す（Barnes et al. 2014 の epsilon 版）",
+    "lakeDepthMin": 0.002,
+    "lakeDepthMinDoc": "filled − height がこれを超えるセルを湖とする（正規化標高。実約6 m）"
+  },
+  "river": {
+    "flowThreshold": 20,
+    "unit": "m/year",
+    "flowThresholdDoc": "flowAcc（m/年単位）がこれを超えると川として扱う。流出0.5 m/年（降水500mm相当）なら上流約40セル ≈ 流域10 km²",
+    "widthFactor": 0.6,
+    "widthFactorDoc": "川幅 ∝ log(1 + acc/threshold) × widthFactor（セル単位）"
+  },
+  "streamPower": {
+    "K": 0.0005,
+    "m": 0.5,
+    "n": 1,
+    "doc": "河川侵食 E = K·A^m·S^n。m/n ≈ 0.5 は侵食地形学の標準的な値（Whipple & Tucker 1999）。n=1 の陰的解法（Braun & Willett 2013）で刻みに依存せず安定させる",
+    "vegetationShield": 0.8,
+    "vegetationShieldDoc": "植生が侵食係数を最大80%減らす（根による土壌保持）"
+  },
+  "sediment": {
+    "capacityK": 0.001,
+    "m": 0.5,
+    "depositRate": 0.5,
+    "doc": "運搬能力 ∝ capacityK × A^m × 勾配。超過分を depositRate の割合で堆積。河口で勾配が落ちて三角州が自然にできる"
+  },
+  "slopeStability": {
+    "angleOfReposeDry": {
+      "value": 35,
+      "unit": "deg",
+      "_doc": "安息角（乾燥）。砂〜土の典型値 30〜40°の中間"
+    },
+    "angleOfReposeSaturated": {
+      "value": 22,
+      "unit": "deg",
+      "_doc": "飽和時の安息角。雨で斜面が崩れやすくなる（土砂災害の閾値）"
+    },
+    "relaxPasses": 2,
+    "relaxPassesDoc": "1 tick あたりの斜面崩壊パス数。超過勾配の半分を低い側へ移す"
+  },
+  "sources": [
+    "Barnes, R. et al. (2014) Priority-Flood: An optimal depression-filling and watershed-labeling algorithm",
+    "Whipple, K. & Tucker, G. (1999) Dynamics of the stream-power river incision model",
+    "Braun, J. & Willett, S. (2013) A very efficient O(n), implicit and parallel method to solve the stream power equation",
+    "USDA (1986) Urban Hydrology for Small Watersheds, TR-55"
+  ]
+}

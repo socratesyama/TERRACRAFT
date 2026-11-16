@@ -1,0 +1,64 @@
+{
+  "_doc": "災害の物理と確率（計画書§8.5）。災害は自然の連鎖の一部として起きる: 急斜面の植生喪失 → 土砂災害、降水急増 → 洪水、乾燥の蓄積 → 山火事。原因はすべてイベントログに残り、干渉（Op）と紐づく。",
+  "flood": {
+    "stageFormula": "stage = k × sqrt(drainAcc) × surge",
+    "k": 0.15,
+    "kDoc": "流量→水位の係数。drainAcc はそのセルが流れ込む川の流量(m/年)",
+    "surgeMax": 3,
+    "surgeMaxDoc": "豪雨イベント時のサージ倍率",
+    "depthFormula": "浸水深 = max(0, stage − hand)。hand は川からの比高",
+    "populationLossRate": 0.3,
+    "populationLossRateDoc": "人口を pop × floodRisk × 0.3 だけ減らす",
+    "trigger": "降水の急増（rain Op や自然の豪雨）またはダム決壊"
+  },
+  "drought": {
+    "moistureThreshold": 0.05,
+    "moistureThresholdDoc": "水分がこの値を下回ると干ばつ。食料生産が減り、飢饉に至る",
+    "foodPenaltyPerTick": 0.1,
+    "recoveryMoisture": 0.12,
+    "recoveryMoistureDoc": "水分が戻るまで干ばつ状態が続く（ヒステリシス）"
+  },
+  "landslide": {
+    "angleOfReposeSaturated": 22,
+    "angleOfReposeDry": 35,
+    "angleUnit": "deg",
+    "trigger": "斜面勾配が飽和安息角を超え、かつ植生の保持力を失ったとき",
+    "vegetationShield": 5,
+    "vegetationShieldDoc": "植生1.0で斜面安定角に+5°（根による土壌保持）",
+    "volumeFactor": 0.3,
+    "volumeFactorDoc": "崩れた体積の30%が下流へ流出土砂になる（残りは斜面下部に堆積）"
+  },
+  "wildfire": {
+    "ignitionBaseProb": 0.0002,
+    "ignitionBaseProbDoc": "乾燥セル1個あたり1年あたりの出火率（乾燥+雷で変動）",
+    "moistureThreshold": 0.08,
+    "windSpreadFactor": 1.5,
+    "windSpreadFactorDoc": "風下方向へは燃え広がりやすい",
+    "forestDamage": 0.8,
+    "forestDamageDoc": "火が通ったセルの植生が80%失われる（全滅ではない: 実火災でも地下部・種子は残る）",
+    "soilErosionBoost": 2,
+    "soilErosionBoostDoc": "焼け跡は植生喪失により侵食係数が一時的に2倍（山火事後の土砂流出は実測で数倍になる）"
+  },
+  "earthquake": {
+    "gutenbergRichterB": 1.0,
+    "gutenbergRichterBDoc": "log10(N) = a − bM の b値。全世界でほぼ1（Gutenberg–Richter則）",
+    "ratePerTick": 0.02,
+    "ratePerTickDoc": "世界全体で1年あたり0.02回の確率で発生（平均50年に1回の揺れイベント）",
+    "maxMagnitude": 8,
+    "landslideTriggerMagnitude": 6.5,
+    "landslideTriggerMagnitudeDoc": "M6.5超えで山岳地帯に斜面崩壊が連鎖"
+  },
+  "storm": {
+    "surgeWindMax": 2.5,
+    "surgeWindMaxDoc": "嵐の最大風速（基本風速の倍率）",
+    "probPerTick": 0.01,
+    "coastalAmplify": 1.5,
+    "coastalAmplifyDoc": "海岸での高潮・風害は1.5倍"
+  },
+  "sources": [
+    "計画書 §8.5 災害",
+    "Gutenberg, B. & Richter, C. (1942) Earthquake magnitude, energy, intensity, and duration",
+    "Wischmeier, W. & Smith, D. (1978) Predicting Rainfall Erosion Losses (USDA, Agriculture Handbook 537)",
+    "Collins, B. et al. (2012) Post-wildfire debris flows（山火事後の土砂流出の実測倍率）"
+  ]
+}
