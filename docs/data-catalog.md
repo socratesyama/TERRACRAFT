@@ -20,6 +20,27 @@
 | `economy.json` | 経済（生業密度、収量、輸送コスト、重力モデル、価格、マルサス動態、DI重み） | Glaeser & Kohlhase 2004; Boserup 1965; Malthus 1798 |
 | `war.json` | 戦争（Lanchester 2乗法則、3:1ルール、地形補正、兵站、戦争疲弊） | Lanchester 1916; Dupuy 1987; RAND 1992 |
 | `nations.json` | 国家（神アルゴリズム、AI性格、国境コスト、災害確率） | 計画書 §21〜22 |
+| `scenarios.json` | 比較実験用シナリオ（目的・初期条件・期待因果・評価指標つきの7世界） | Diamond 1997; Wittfogel 1957; MacArthur & Wilson 1967 |
+| `feedback.json` | 層をまたぐ因果ループ（雨陰→農業、氾濫→肥沃度、飢饉→移住→戦争 など10本） | Roe 2005; Boserup 1965; Jacobsen & Adams 1958 |
+| `events.json` | 外生イベント（火山噴火、疫病、技術革新、移住の波、気候変動、黄金時代） | McNeill 1976; Oppenheimer 2003 |
+| `policy.json` | 国家政策（灌漑、森林保護、備蓄、軍事費、道路・港、検疫、交易奨励、治水） | Boserup 1965; Wittfogel 1957 |
+| `observables.json` | 検証可能な観測指標（人口・食料・貿易・戦争など約45種、単位と集計法つき） | 計画書 §22.11 |
+| `validation.json` | data/ 全体の検証ルール（必須キー・単位・範囲・参照整合性） | 本ドキュメントの設計原則 |
+
+## 検証
+
+`scripts/validate.py` が `data/validation.json` のルールに従って `data/` 全体を検査します。
+
+```bash
+python3 scripts/validate.py      # エラーは exit 1、警告も見るなら -v
+```
+
+- **必須キー**: 各ファイルに requiredKeys が揃っているか
+- **単位・範囲**: 気温減率・降水量較正・収量・増加率などの重要数値が単位つきで範囲内か
+- **参照整合性**: シナリオの地形プリセット・バイオーム・評価指標、政策の効果先、
+  イベントが呼ぶ災害などが、参照先ファイルに実在するか
+
+JSON を書き換えたら必ずこの検証を通してからコミットしてください。
 
 ## 設計原則
 

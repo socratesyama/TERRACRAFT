@@ -24,6 +24,14 @@ data/                        # 科学データ（本リポジトリの本体）
   economy.json               # 経済（生産・貿易・価格・開発指標）
   war.json                   # 戦争（Lanchester・地形防御・兵站）
   nations.json               # 国家AI（性格・領土・神アルゴリズム）
+  scenarios.json             # 比較実験用シナリオ（雨陰・大河・交易路など）
+  feedback.json              # 層をまたぐ因果ループ（雨陰→農業→人口→戦争）
+  events.json                # 外生イベント（火山・疫病・技術革新・気候変動）
+  policy.json                # 国家政策（灌漑・備蓄・軍事費・治水）
+  observables.json           # 検証可能な観測指標（人口・食料・貿易・戦争）
+  validation.json            # data/ 全体の検証ルール（単位・範囲・参照整合性）
+scripts/
+  validate.py                # validation.json に従って data/ を機械検証するスクリプト
 docs/
   implementation-plan.md     # 詳細実装計画（全文）
   data-catalog.md            # データカタログ（設計原則・単位の慣行）
@@ -36,6 +44,15 @@ docs/
 `data/` の JSON は自己文書化されています。各フィールドの `_doc` に日本語の説明があり、
 `sources` に一次文献が出ています。**JSON を書き換えるだけでシミュレーションの挙動が変わる**よう、
 数値はすべて `data/` に集約する方針です。
+
+JSON を書き換えたら、検証スクリプトを通してください:
+
+```bash
+python3 scripts/validate.py
+```
+
+`data/validation.json` の定義に従い、必須キー・単位・範囲・参照整合性
+（シナリオが参照する地形プリセットや指標が実在するかなど）を機械的に検査します。
 
 ## 主要な科学モデル
 
