@@ -16,7 +16,11 @@
     "_doc": "Worker が1回のバッチで連続して計算する上限時間（§10.4）。超えたら手を止め、届いた Op や停止命令を先に処理する"
   },
   "playback": {
-    "speeds": [1, 4, 16],
+    "speeds": [
+      1,
+      4,
+      16
+    ],
     "ticksPerSecondAt1x": 5,
     "_doc": "再生速度の倍率と、1x のときの tick/秒（§10.2）"
   },
@@ -52,5 +56,11 @@
     "previewThrottleMs": 100,
     "_doc": "描画の上限（§12）。木のインスタンス数、devicePixelRatio の上限、等高線を描く間の低解像度プレビュー（§11）"
   },
-  "sources": ["docs/implementation-plan.md §9.3, §9.4, §10, §11, §12, §15.2"]
+  "ui": {
+    "statsHz": 4,
+    "_doc": "統計パネルの更新頻度（Hz）。スナップショットごとではなく間引く（§13.1 worldMirror）"
+  },
+  "sources": [
+    "docs/implementation-plan.md §9.3, §9.4, §10, §11, §12, §15.2"
+  ]
 }

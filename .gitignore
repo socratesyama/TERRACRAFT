@@ -1,6 +1,12 @@
-node_modules
-dist
+
 *.local
+*.tsbuildinfo
 .DS_Store
-coverage
+.taste-skill/
 __pycache__/
+coverage
+coverage/
+dist
+dist/
+node_modules
+node_modules/

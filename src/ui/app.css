@@ -1,0 +1,272 @@
+/*
+ * 作業画面（アプリ）の規則: 面は色の段差で分け、線・影・グラデーション・グローは使わない。
+ * 色はトークンだけを参照する。アクセントは1色（再生・選択中の状態にだけ使う）。
+ */
+:root {
+  color-scheme: dark;
+
+  --ground: #0a1420; /* 画面全体 */
+  --surface: #101e2d; /* パネル・バー */
+  --surface-2: #17283b; /* ボタン・ボックスの面 */
+  --surface-3: #21374e; /* ホバー */
+  --ink: #e9f0f7; /* 本文 */
+  --ink-muted: #a5b6c8; /* 補足（--surface 上でコントラスト 4.5:1 以上） */
+  --accent: #46c2b3; /* 海の青緑 */
+  --on-accent: #06201d;
+  --danger: #ff9a9a;
+  --warn: #e6b450;
+  --focus: #ffffff;
+
+  --font: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic UI', sans-serif;
+  --text-sm: 0.8125rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --radius: 8px;
+  --tap: 44px; /* タッチ領域の最小 */
+  --ease: 150ms ease-out;
+
+  font-family: var(--font);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+h1,
+h2,
+p,
+dl,
+dd {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---- 画面の骨格 ---- */
+.app {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+}
+.topbar {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+}
+.topbar h1 {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.tagline {
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+.stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  min-height: 0;
+}
+.viewport {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none; /* ドラッグ操作をブラウザのスクロールに奪わせない */
+}
+.viewport-error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--danger);
+}
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface);
+  overflow-y: auto;
+}
+
+/* ---- パネル ---- */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+.panel h2 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+.kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+}
+.kv dt {
+  color: var(--ink-muted);
+}
+.kv dd {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.meter-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.meter-track {
+  height: 8px;
+  margin-top: var(--space-2);
+  background: var(--surface);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.meter-fill {
+  height: 100%;
+  background: var(--accent);
+}
+.note {
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+/* ---- ボタン ---- */
+button {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 0;
+  border-radius: var(--radius);
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  cursor: pointer;
+  transition: background-color var(--ease);
+}
+button:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+button.primary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+button.primary:hover:not(:disabled) {
+  background: #5ad0c1;
+}
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.panel .choice {
+  background: var(--surface);
+}
+.panel .choice:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+.choice {
+  min-width: var(--tap);
+}
+.choice.active,
+.panel .choice.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+/* ---- 下部の時間操作 ---- */
+.timeline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  font-size: var(--text-sm);
+}
+.year strong {
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+}
+.status {
+  color: var(--ink-muted);
+  margin-left: auto;
+}
+.status[data-status='error'] {
+  color: var(--danger);
+}
+.badge {
+  background: var(--warn);
+  color: #1c1503;
+  border-radius: 4px;
+  padding: 2px var(--space-2);
+  font-weight: 600;
+}
+
+.fatal {
+  padding: var(--space-5);
+}
+.fatal pre {
+  white-space: pre-wrap;
+}
+
+/* ---- 狭い画面: パネルを3D表示の下へ ---- */
+@media (max-width: 900px) {
+  .app {
+    height: auto;
+    min-height: 100%;
+    grid-template-rows: auto auto auto;
+  }
+  .stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .viewport {
+    height: 56vh;
+  }
+  .status {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
