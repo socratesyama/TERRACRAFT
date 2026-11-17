@@ -270,3 +270,20 @@ button.primary:hover:not(:disabled) {
     animation: none !important;
   }
 }
+
+/* 凡例: 降水レイヤーのシェーダ（render/shaders.ts precipRamp）と同じ3色。データの符号化であり装飾ではない */
+.legend {
+  margin-top: var(--space-3);
+}
+.legend-bar {
+  height: 10px;
+  border-radius: 2px;
+  background: linear-gradient(to right, rgb(219, 199, 140), rgb(115, 184, 158), rgb(31, 97, 184));
+}
+.legend-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}

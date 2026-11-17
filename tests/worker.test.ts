@@ -74,7 +74,7 @@ describe('BufferPool', () => {
 describe('SimulationController（Workerプロトコル）', () => {
   it('init で ready と初期スナップショットを返す', () => {
     const s = setup();
-    s.send({ type: 'init', seed: 42, size: 128 });
+    s.send({ type: 'init', scenarioId: 'island', seed: 42, size: 128 });
     expect(s.sent[0]).toEqual({ type: 'ready', size: 128 });
     const snap = s.snapshots()[0];
     expect(snap?.type === 'snapshot' && snap.tick).toBe(0);
@@ -82,7 +82,7 @@ describe('SimulationController（Workerプロトコル）', () => {
 
   it('バックプレッシャー: 返却しない限り poolSize 本以上は送らない', () => {
     const s = setup();
-    s.send({ type: 'init', seed: 1, size: 128 });
+    s.send({ type: 'init', scenarioId: 'island', seed: 1, size: 128 });
     for (let i = 0; i < 20; i++) s.send({ type: 'step', n: 1 });
     expect(s.snapshots().length).toBe(snapshot.poolSize);
     s.send({ type: 'release', buffers: [s.buffers[0]] });
@@ -92,7 +92,7 @@ describe('SimulationController（Workerプロトコル）', () => {
 
   it('再生: 1x は ticksPerSecondAt1x、スナップショットは maxHz 以下', () => {
     const s = setup();
-    s.send({ type: 'init', seed: 1, size: 128 });
+    s.send({ type: 'init', scenarioId: 'island', seed: 1, size: 128 });
     s.send({ type: 'play', speed: 1 });
     const before = s.snapshots().length;
     for (let i = 0; i < 100; i++) {
@@ -108,7 +108,7 @@ describe('SimulationController（Workerプロトコル）', () => {
 
   it('pause で tick が止まる', () => {
     const s = setup();
-    s.send({ type: 'init', seed: 1, size: 128 });
+    s.send({ type: 'init', scenarioId: 'island', seed: 1, size: 128 });
     s.send({ type: 'play', speed: 16 });
     s.advance(1000);
     s.c.runBatch();
@@ -122,7 +122,7 @@ describe('SimulationController（Workerプロトコル）', () => {
 
   it('時間切れ: 遅れが大きくても1バッチは sliceMs 付近で手を止める', () => {
     const s = setup(1); // now() が呼ばれるたびに1ms進む
-    s.send({ type: 'init', seed: 1, size: 128 });
+    s.send({ type: 'init', scenarioId: 'island', seed: 1, size: 128 });
     s.send({ type: 'play', speed: 16 });
     s.advance(100000); // 800000 tick 分の遅れ
     expect(s.c.runBatch()).toBe('busy');
@@ -140,7 +140,7 @@ describe('SimulationController（Workerプロトコル）', () => {
   it('決定論: 同じ seed・同じ操作列なら一次状態のハッシュが一致する', () => {
     const run = () => {
       const s = setup();
-      s.send({ type: 'init', seed: 42, size: 128 });
+      s.send({ type: 'init', scenarioId: 'island', seed: 42, size: 128 });
       s.send({ type: 'step', n: 100 });
       return hashWorld(s.c.worldRef!, hash.quantizeScale);
     };

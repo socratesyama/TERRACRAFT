@@ -1,14 +1,19 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { DataBundle } from '../core/data/schema';
-import { SimulationClient } from '../worker/client';
+import { SimulationClient, type Snapshot } from '../worker/client';
 import { t } from './i18n';
 import { PauseIcon, PlayIcon } from './Icon';
-import { LayerPanel, StatsPanel } from './panels';
+import { LayerPanel, ScenarioPanel, StatsPanel } from './panels';
 import { useUiStore, useWorldMirror } from './store';
 import { Viewport } from './Viewport';
 
 export function App({ data }: { data: DataBundle }) {
   const clientRef = useRef<SimulationClient | null>(null);
+  const applyRef = useRef<((s: Snapshot) => void) | null>(null);
+  const register = useCallback((fn: ((s: Snapshot) => void) | null) => {
+    applyRef.current = fn;
+  }, []);
+  const scenarioId = useUiStore((s) => s.scenarioId);
   const { playing, speed, workerStatus, errorMessage, setPlaying, setSpeed, setWorkerStatus } =
     useUiStore();
   const degraded = useWorldMirror((s) => s.degraded);
@@ -33,15 +38,17 @@ export function App({ data }: { data: DataBundle }) {
         lastMirrorAt = now;
         useWorldMirror.getState().update(s.stats);
       }
+      applyRef.current?.(s); // GPU へコピーしてから返却する
       client.release(s);
     };
-    client.send({ type: 'init', seed, size: gridSize });
+    setWorkerStatus('connecting');
+    client.send({ type: 'init', scenarioId, seed, size: gridSize });
 
     return () => {
       client.terminate();
       clientRef.current = null;
     };
-  }, [data, seed, gridSize, setWorkerStatus]);
+  }, [data, seed, gridSize, scenarioId, setWorkerStatus]);
 
   const togglePlay = () => {
     const next = !playing;
@@ -67,12 +74,17 @@ export function App({ data }: { data: DataBundle }) {
       <main className="stage">
         <Viewport
           gridSize={gridSize}
+          seaLevel={data.scale.seaLevel.value}
+          heightScale={data.runtime.render.heightScale}
+          precipMaxMm={data.runtime.render.precipLayerMaxMm}
+          register={register}
           devicePixelRatioMax={data.runtime.render.devicePixelRatioMax}
           devicePixelRatioMaxMobile={data.runtime.render.devicePixelRatioMaxMobile}
         />
         <aside className="side">
+          <ScenarioPanel data={data} />
           <StatsPanel data={data} seed={seed} size={gridSize} />
-          <LayerPanel />
+          <LayerPanel precipMaxMm={data.runtime.render.precipLayerMaxMm} />
         </aside>
       </main>
 

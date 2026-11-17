@@ -24,6 +24,8 @@ export type Op =
 export type ToWorker =
   | {
       type: 'init';
+      /** data/scenarios.json のシナリオ ID（地形プリセット・風向・気候の上書きが決まる） */
+      scenarioId: string;
       seed: number;
       size?: number;
       params?: Partial<WorldParams>;
@@ -38,10 +40,10 @@ export type ToWorker =
   | { type: 'release'; buffers: ArrayBuffer[] }
   | { type: 'dryRunDam'; a: Vec2; b: Vec2; crest: number };
 
-/** 描画に渡すデータ。M0 は height のみ（M1 で waterSurface 等を足す）。 */
+/** 描画に渡すデータ（core/renderPack.ts のレイアウト: RGBA32F × size²）。転送されるので受け側が release で返す。 */
 export interface RenderPack {
   size: number;
-  height: ArrayBuffer; // Float32 × size²（転送されるので受け側が release で返す）
+  data: ArrayBuffer;
 }
 
 export interface Stats {

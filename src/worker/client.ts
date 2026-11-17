@@ -46,8 +46,8 @@ export class SimulationClient {
   }
 
   release(s: Snapshot): void {
-    this.worker.postMessage({ type: 'release', buffers: [s.pack.height] } satisfies ToWorker, [
-      s.pack.height,
+    this.worker.postMessage({ type: 'release', buffers: [s.pack.data] } satisfies ToWorker, [
+      s.pack.data,
     ]);
   }
 

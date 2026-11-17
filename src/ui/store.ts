@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 
-export type LayerId = 'terrain' | 'temperature' | 'moisture' | 'erosion';
+export type LayerId = 'terrain' | 'precip' | 'temperature' | 'moisture' | 'erosion';
 
 /** UI 状態のみ。World の配列は入れない（計画書 §3, §13.1）。 */
 interface UiState {
+  scenarioId: string;
+  setScenarioId: (id: string) => void;
   layer: LayerId;
   setLayer: (layer: LayerId) => void;
   playing: boolean;
@@ -16,6 +18,8 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>()((set) => ({
+  scenarioId: 'island',
+  setScenarioId: (scenarioId) => set({ scenarioId, playing: false }),
   layer: 'terrain',
   setLayer: (layer) => set({ layer }),
   playing: false,

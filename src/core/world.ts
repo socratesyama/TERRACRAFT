@@ -20,6 +20,7 @@ export interface PrimaryFields {
 
 export interface DerivedFields {
   filled: Float32Array; // Priority-Flood の充填後標高
+  order: Int32Array; // Priority-Flood の展開順（出口から上流へ）
   flowDir: Uint8Array; // D8方向 0〜7、255は出口
   flowAcc: Float32Array; // 流量累積
   runoff: Float32Array; // 降水 → 流出
@@ -104,6 +105,7 @@ export function allocWorld(data: DataBundle, opts: AllocOptions): World {
     },
     derived: {
       filled: new Float32Array(n),
+      order: new Int32Array(n),
       flowDir: new Uint8Array(n).fill(255),
       flowAcc: new Float32Array(n),
       runoff: new Float32Array(n),
@@ -134,5 +136,18 @@ export function hashWorld(w: World, quantizeScale: number): number {
     hashFloat32(p.population, quantizeScale),
     hashUint8(p.landUse),
     hashFloat32(p.road, quantizeScale),
+  ]);
+}
+
+/** 派生状態のハッシュ（水文・降水）。同じ seed・同じ入力から同じ値になることの確認用。 */
+export function hashDerived(w: World, quantizeScale: number): number {
+  const d = w.derived;
+  return combineHashes([
+    hashFloat32(d.filled, quantizeScale),
+    hashUint8(d.flowDir),
+    hashFloat32(d.flowAcc, quantizeScale),
+    hashFloat32(d.runoff, quantizeScale),
+    hashFloat32(d.precip, quantizeScale),
+    hashFloat32(d.lakeDepth, quantizeScale),
   ]);
 }

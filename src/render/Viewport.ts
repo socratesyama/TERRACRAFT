@@ -1,34 +1,50 @@
 import {
   Color,
-  HemisphereLight,
-  DirectionalLight,
+  DataTexture,
+  FloatType,
   Mesh,
-  MeshStandardMaterial,
+  NearestFilter,
   PerspectiveCamera,
   PlaneGeometry,
+  RGBAFormat,
   Scene,
+  ShaderMaterial,
   WebGLRenderer,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { PACK_CHANNELS } from '../core/renderPack';
+import { TERRAIN_FRAGMENT, TERRAIN_VERTEX, WATER_FRAGMENT, WATER_VERTEX } from './shaders';
 
 export interface ViewportOptions {
   /** グリッドの一辺（セル数）。scale.json から渡す */
   gridSize: number;
+  seaLevel: number;
+  /** 正規化標高 1.0 を何セル分の高さで描くか（runtime.json render.heightScale） */
+  heightScale: number;
+  /** 降水レイヤーの色の上限 mm/年（runtime.json render.precipLayerMaxMm） */
+  precipMaxMm: number;
   devicePixelRatioMax: number;
   devicePixelRatioMaxMobile: number;
 }
 
+export type LayerIndex = 0 | 1; // 0: 地形, 1: 降水
+
 /**
- * 素の Three.js のホスト（react-three-fiber は使わない: 計画書 §3）。
- * M0 は空のシーン（平面・光・軌道カメラ）。M1 で高さテクスチャの頂点変位に置き換える。
- * 生成したジオメトリ・マテリアル・レンダラは dispose() で必ず解放する（§12.3）。
+ * 素の Three.js のホスト（react-three-fiber は使わない: 計画書 §3, §12）。
+ * 地形は PlaneGeometry の頂点を、高さテクスチャ（RGBA32F、NearestFilter）で変位させる。
+ * 頂点＝セルなので再メッシュ不要。水は同じ格子の別メッシュ（浅い→深いで色を変え、深さ0以下は discard）。
+ * 生成したジオメトリ・マテリアル・テクスチャ・レンダラは dispose() で必ず解放する（§12.3）。
  */
 export class TerrainViewport {
   private readonly renderer: WebGLRenderer;
   private readonly scene = new Scene();
   private readonly camera: PerspectiveCamera;
   private readonly controls: OrbitControls;
-  private readonly ground: Mesh;
+  private readonly geometry: PlaneGeometry;
+  private readonly texture: DataTexture;
+  private readonly terrainMaterial: ShaderMaterial;
+  private readonly waterMaterial: ShaderMaterial;
+  private readonly textureData: Float32Array;
   private readonly observer: ResizeObserver;
   private raf = 0;
   private disposed = false;
@@ -37,6 +53,7 @@ export class TerrainViewport {
     private readonly container: HTMLElement,
     opts: ViewportOptions,
   ) {
+    const { gridSize: size } = opts;
     const coarse = window.matchMedia('(pointer: coarse)').matches;
     const dprMax = coarse ? opts.devicePixelRatioMaxMobile : opts.devicePixelRatioMax;
 
@@ -45,29 +62,70 @@ export class TerrainViewport {
     this.renderer.domElement.style.display = 'block';
     container.appendChild(this.renderer.domElement);
 
-    this.scene.background = new Color(0x0b1520);
-    this.camera = new PerspectiveCamera(45, 1, 1, opts.gridSize * 10);
-    this.camera.position.set(0, opts.gridSize * 0.8, opts.gridSize * 0.9);
+    this.scene.background = new Color(0x0a1420);
+    this.camera = new PerspectiveCamera(45, 1, 1, size * 10);
+    this.camera.position.set(0, size * 0.75, size * 0.85);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.maxPolarAngle = Math.PI / 2 - 0.05; // 地面の下に潜らない
     this.controls.enableDamping = true;
+    this.controls.target.set(0, opts.heightScale * 0.15, 0);
 
-    this.scene.add(new HemisphereLight(0xdfeeff, 0x2a3a2a, 1.0));
-    const sun = new DirectionalLight(0xffffff, 1.5);
-    sun.position.set(opts.gridSize, opts.gridSize, opts.gridSize * 0.5);
-    this.scene.add(sun);
+    // 高さテクスチャ（R 標高 / G 水面 / B 川 / A 降水）。最初は海抜0・水なし。
+    this.textureData = new Float32Array(size * size * PACK_CHANNELS);
+    for (let i = 0; i < size * size; i++) this.textureData[i * PACK_CHANNELS + 1] = -1;
+    this.texture = new DataTexture(this.textureData, size, size, RGBAFormat, FloatType);
+    this.texture.minFilter = NearestFilter;
+    this.texture.magFilter = NearestFilter;
+    this.texture.generateMipmaps = false;
+    this.texture.needsUpdate = true;
 
-    // 頂点＝セル（計画書 §12.1）。M1 で頂点シェーダの変位に差し替える。
-    const g = new PlaneGeometry(opts.gridSize - 1, opts.gridSize - 1, opts.gridSize - 1, opts.gridSize - 1);
-    g.rotateX(-Math.PI / 2);
-    this.ground = new Mesh(g, new MeshStandardMaterial({ color: 0x3d5a45, roughness: 1 }));
-    this.scene.add(this.ground);
+    const uniforms = {
+      uData: { value: this.texture },
+      uSize: { value: size },
+      uHeightScale: { value: opts.heightScale },
+      uSeaLevel: { value: opts.seaLevel },
+      uPrecipMax: { value: opts.precipMaxMm },
+      uLayer: { value: 0 },
+    };
+
+    // 頂点＝セル（計画書 §12.1）
+    this.geometry = new PlaneGeometry(size - 1, size - 1, size - 1, size - 1);
+    this.geometry.rotateX(-Math.PI / 2); // uv.y = 1 が北（-z）。グリッドの y は北向きに増える。
+
+    this.terrainMaterial = new ShaderMaterial({
+      uniforms,
+      vertexShader: TERRAIN_VERTEX,
+      fragmentShader: TERRAIN_FRAGMENT,
+    });
+    this.waterMaterial = new ShaderMaterial({
+      uniforms,
+      vertexShader: WATER_VERTEX,
+      fragmentShader: WATER_FRAGMENT,
+      transparent: true,
+      depthWrite: false,
+    });
+    const terrain = new Mesh(this.geometry, this.terrainMaterial);
+    const water = new Mesh(this.geometry, this.waterMaterial);
+    water.renderOrder = 1;
+    terrain.frustumCulled = false; // 頂点を GPU で動かすので、元の境界箱で切らない
+    water.frustumCulled = false;
+    this.scene.add(terrain, water);
 
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(container);
     this.resize();
     this.loop();
+  }
+
+  /** Worker からのスナップショット（renderPack.ts のレイアウト）を反映する。呼び出し側はコピー後にバッファを返却できる。 */
+  setData(pack: Float32Array): void {
+    this.textureData.set(pack);
+    this.texture.needsUpdate = true;
+  }
+
+  setLayer(layer: LayerIndex): void {
+    this.terrainMaterial.uniforms.uLayer.value = layer;
   }
 
   private resize(): void {
@@ -92,8 +150,10 @@ export class TerrainViewport {
     cancelAnimationFrame(this.raf);
     this.observer.disconnect();
     this.controls.dispose();
-    this.ground.geometry.dispose();
-    (this.ground.material as MeshStandardMaterial).dispose();
+    this.geometry.dispose();
+    this.terrainMaterial.dispose();
+    this.waterMaterial.dispose();
+    this.texture.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }

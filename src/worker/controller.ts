@@ -1,5 +1,7 @@
 import type { DataBundle } from '../core/data/schema';
-import { allocWorld, type World } from '../core/world';
+import { buildWorld } from '../core/pipeline';
+import { PACK_CHANNELS, buildRenderPack, packByteLength } from '../core/renderPack';
+import type { World } from '../core/world';
 import { BufferPool } from './bufferPool';
 import type { Op, Post, ToWorker } from './protocol';
 
@@ -12,6 +14,7 @@ export type BatchResult = 'busy' | 'idle' | 'stopped';
  */
 export class SimulationController {
   private world: World | null = null;
+  private packCache: Float32Array | null = null;
   private pool: BufferPool | null = null;
   private readonly opLog: Op[] = [];
   private running = false;
@@ -50,11 +53,13 @@ export class SimulationController {
   private dispatch(msg: ToWorker): void {
     switch (msg.type) {
       case 'init': {
-        this.world = allocWorld(this.data, { seed: msg.seed, size: msg.size });
+        this.world = buildWorld(this.data, msg.scenarioId, msg.seed, msg.size);
         Object.assign(this.world.params, msg.params);
+        this.packCache = new Float32Array(this.world.size * this.world.size * PACK_CHANNELS);
+        buildRenderPack(this.world, this.data, this.packCache);
         this.opLog.length = 0;
         for (const op of msg.ops ?? []) this.opLog.push(op);
-        const bytes = this.world.size * this.world.size * Float32Array.BYTES_PER_ELEMENT;
+        const bytes = packByteLength(this.world.size);
         this.pool = new BufferPool(bytes, this.data.runtime.snapshot.poolSize);
         this.running = false;
         this.tickCarry = 0;
@@ -144,14 +149,15 @@ export class SimulationController {
     if (!force && t - this.lastSnapshotAt < minInterval) return;
     const buf = pool.acquire();
     if (!buf) return; // 前のスナップショットが返却されていない
-    new Float32Array(buf).set(w.primary.height);
+    if (!this.packCache) return;
+    new Float32Array(buf).set(this.packCache);
     this.lastSnapshotAt = t;
     const avg = this.avgTickMs();
     this.post(
       {
         type: 'snapshot',
         tick: w.tick,
-        pack: { size: w.size, height: buf },
+        pack: { size: w.size, data: buf },
         stats: {
           tick: w.tick,
           avgTickMs: avg,

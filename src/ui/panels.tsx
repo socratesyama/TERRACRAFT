@@ -1,9 +1,11 @@
 import type { DataBundle } from '../core/data/schema';
-import { t } from './i18n';
+import { SHOWCASE_SCENARIOS, resolveScenario } from '../core/pipeline';
+import { t, type MessageKey } from './i18n';
 import { useUiStore, useWorldMirror, type LayerId } from './store';
 
-const LAYERS: readonly { id: LayerId; label: 'layer.terrain' | 'layer.temperature' | 'layer.moisture' | 'layer.erosion' }[] = [
+const LAYERS: readonly { id: LayerId; label: MessageKey }[] = [
   { id: 'terrain', label: 'layer.terrain' },
+  { id: 'precip', label: 'layer.precip' },
   { id: 'temperature', label: 'layer.temperature' },
   { id: 'moisture', label: 'layer.moisture' },
   { id: 'erosion', label: 'layer.erosion' },
@@ -55,7 +57,7 @@ export function StatsPanel({ data, seed, size }: { data: DataBundle; seed: numbe
 }
 
 /** レイヤー切替。地形が入る M1（降水・水分）と M3（侵食）まで、地形以外は無効にしておく */
-export function LayerPanel() {
+export function LayerPanel({ precipMaxMm }: { precipMaxMm: number }) {
   const layer = useUiStore((s) => s.layer);
   const setLayer = useUiStore((s) => s.setLayer);
 
@@ -64,7 +66,7 @@ export function LayerPanel() {
       <h2 id="layers-title">{t('panel.layers')}</h2>
       <div className="choices" role="radiogroup" aria-label={t('panel.layers')}>
         {LAYERS.map(({ id, label }) => {
-          const enabled = id === 'terrain';
+          const enabled = id === 'terrain' || id === 'precip';
           return (
             <button
               key={id}
@@ -80,7 +82,42 @@ export function LayerPanel() {
           );
         })}
       </div>
+      {layer === 'precip' && (
+        <div className="legend" aria-label={t('legend.precip')}>
+          <div className="legend-bar" aria-hidden="true" />
+          <div className="legend-labels">
+            <span>{t('legend.dry')} 0</span>
+            <span>
+              {precipMaxMm} mm/年 {t('legend.wet')}
+            </span>
+          </div>
+        </div>
+      )}
       <p className="note">{t('panel.layers.soon')}</p>
+    </section>
+  );
+}
+
+export function ScenarioPanel({ data }: { data: DataBundle }) {
+  const scenarioId = useUiStore((s) => s.scenarioId);
+  const setScenarioId = useUiStore((s) => s.setScenarioId);
+  return (
+    <section className="panel" aria-labelledby="scenario-title">
+      <h2 id="scenario-title">{t('panel.scenario')}</h2>
+      <div className="choices" role="radiogroup" aria-label={t('panel.scenario')}>
+        {SHOWCASE_SCENARIOS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={scenarioId === id}
+            className={scenarioId === id ? 'choice active' : 'choice'}
+            onClick={() => setScenarioId(id)}
+          >
+            {resolveScenario(data, id).title}
+          </button>
+        ))}
+      </div>
     </section>
   );
 }

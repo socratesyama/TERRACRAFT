@@ -54,7 +54,11 @@
     "devicePixelRatioMaxMobile": 1.5,
     "previewGridSize": 64,
     "previewThrottleMs": 100,
-    "_doc": "描画の上限（§12）。木のインスタンス数、devicePixelRatio の上限、等高線を描く間の低解像度プレビュー（§11）"
+    "_doc": "描画の上限（§12）。木のインスタンス数、devicePixelRatio の上限、等高線を描く間の低解像度プレビュー（§11）",
+    "heightScale": 40,
+    "heightScaleDoc": "描画の垂直誇張: 正規化標高 1.0 を何セル分の高さで描くか（実際は 1.0=3000m=6セル。見やすさのため誇張）",
+    "precipLayerMaxMm": 2500,
+    "precipLayerMaxMmDoc": "降水レイヤーの色の上限（mm/年）。風上斜面の降水の目安（climate.json precip の doc）"
   },
   "ui": {
     "statsHz": 4,
