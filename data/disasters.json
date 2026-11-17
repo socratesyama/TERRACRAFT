@@ -9,7 +9,11 @@
     "depthFormula": "浸水深 = max(0, stage − hand)。hand は川からの比高",
     "populationLossRate": 0.3,
     "populationLossRateDoc": "人口を pop × floodRisk × 0.3 だけ減らす",
-    "trigger": "降水の急増（rain Op や自然の豪雨）またはダム決壊"
+    "trigger": "降水の急増（rain Op や自然の豪雨）またはダム決壊",
+    "stormTickProb": {
+      "value": 0.01,
+      "_doc": "自然の豪雨が起きる確率（disasters.storm.probPerTick と同じ。豪雨 = 洪水の発火）"
+    }
   },
   "drought": {
     "moistureThreshold": 0.05,
@@ -26,7 +30,19 @@
     "vegetationShield": 5,
     "vegetationShieldDoc": "植生1.0で斜面安定角に+5°（根による土壌保持）",
     "volumeFactor": 0.3,
-    "volumeFactorDoc": "崩れた体積の30%が下流へ流出土砂になる（残りは斜面下部に堆積）"
+    "volumeFactorDoc": "崩れた体積の30%が下流へ流出土砂になる（残りは斜面下部に堆積）",
+    "probPerCellPerTick": {
+      "value": 0.002,
+      "_doc": "限界角を超えた斜面セルが 1 tick に崩れる確率（計画書に無く追加）"
+    },
+    "slumpDepth": {
+      "value": 0.004,
+      "_doc": "1 回の崩落で上部から削れる正規化標高。30% が下流へ流出土砂、70% は斜面下部に堆積（volumeFactor）"
+    },
+    "maxPerTick": {
+      "value": 3,
+      "_doc": "1 tick の崩落数の上限（イベントログの氾濫を防ぐ）"
+    }
   },
   "wildfire": {
     "ignitionBaseProb": 0.0002,

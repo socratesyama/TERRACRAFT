@@ -1,24 +1,7 @@
-import type { WorldEvent, WorldParams } from '../core/world';
+import type { Settlement, WorldEvent, WorldParams } from '../core/world';
 
-/** 計画書 §9.1 の Op（純データ）。M0 では型だけ定義し、適用は M1 以降で実装する。 */
-export type Vec2 = readonly [number, number];
-
-export interface ContourStroke {
-  points: number[]; // 正規化座標 [x0,y0,x1,y1,...]
-  elevation: number;
-  width: number;
-}
-
-export type ParamKey = keyof WorldParams;
-
-export type Op =
-  | { t: 'contour'; tick: number; stroke: ContourStroke }
-  | { t: 'raise'; tick: number; pts: number[]; r: number; amount: number }
-  | { t: 'forest'; tick: number; pts: number[]; r: number; amount: number }
-  | { t: 'dam'; tick: number; a: Vec2; b: Vec2; crest: number }
-  | { t: 'fill'; tick: number; pts: number[]; r: number }
-  | { t: 'param'; tick: number; key: ParamKey; value: number }
-  | { t: 'rain'; tick: number; amount: number };
+export type { ContourStroke, Op, ParamKey, Vec2 } from '../core/ops';
+import type { Op, Vec2 } from '../core/ops';
 
 /** 計画書 §11 */
 export type ToWorker =
@@ -36,6 +19,8 @@ export type ToWorker =
   | { type: 'play'; speed: number }
   | { type: 'pause' }
   | { type: 'step'; n: number }
+  | { type: 'undo' }
+  | { type: 'redo' }
   | { type: 'rewind'; toOpIndex: number }
   | { type: 'release'; buffers: ArrayBuffer[] }
   | { type: 'dryRunDam'; a: Vec2; b: Vec2; crest: number };
@@ -56,11 +41,23 @@ export interface Stats {
   vegetation: number;
   /** バイオームごとのセル数の割合（番号は climate.biomeKeys の順、全セル中） */
   biomeShare: number[];
+  /** 取り消せる Op の数 / やり直せる Op の数 */
+  undoDepth: number;
+  redoDepth: number;
 }
 
 export type FromWorker =
   | { type: 'ready'; size: number }
-  | { type: 'snapshot'; tick: number; pack: RenderPack; stats: Stats; events: WorldEvent[] }
+  | {
+      type: 'snapshot';
+      tick: number;
+      pack: RenderPack;
+      stats: Stats;
+      /** この通し番号（seq）以降のイベント。UI は自分のログのうち seq >= eventsFrom を捨てて、これを足す（undo でログが巻き戻るため） */
+      eventsFrom: number;
+      events: WorldEvent[];
+      settlements: Settlement[];
+    }
   | { type: 'progress'; done: number; total: number }
   | { type: 'dryRunResult'; lakeMask: Uint8Array }
   | { type: 'error'; message: string };

@@ -1,1 +1,111 @@
-{"_doc": "集落・文明エンジンの定数（計画書§8）。居住適性は水・平地・植生・交通から決まり、洪水リスクが配置を自然に制約する。集落はオブジェクト（リスト）として持ち、population/landUse 配列は描画用にラスタライズする。", "suitability": {"weights": {"waterProximity": 0.4, "flatness": 0.3, "vegetation": 0.2, "transport": 0.1}, "weightsDoc": "適性 = 水への近さ×0.4 + 平地度×0.3 + 植生×0.2 + 交通×0.1 − 洪水リスク×0.5", "floodRiskPenalty": 0.5, "waterLUT": {"optimalMinCells": 1, "optimalMaxCells": 6, "_doc": "川・湖から1〜6セルが最適。水面そのものは除外。LUTで評価"}, "flatness": {"slopeOptimalMax": 0.02, "_doc": "正規化勾配がこれ以下なら平地度1.0、超えたら線形減衰"}}, "spawn": {"intervalTicks": 4, "threshold": 0.62, "minDistanceCells": 8, "initialPop": 20, "initialPopDoc": "村の発生人口（人）"}, "growth": {"logisticR": 0.015, "logisticRDoc": "dP = r×P×(1−P/Kc)。r=0.015/年 は前近代的な人口増加率（0.5〜2%/年の範囲の中央）", "carryCapFoodPerCell": 30, "carryCapFoodPerCellDoc": "Kc は周辺農地の食料生産力から決める。農地1セルあたりの支えられる人口", "tierThresholds": {"town": 500, "city": 3000, "_doc": "人口 ≥500 で町、≥3000 で都市。海に接する町以上は港町（tier 3）"}, "farmland": {"radiusPerPop": 0.004, "radiusPerPopDoc": "農地半径（セル）= sqrt(人口×0.004/π)。人口1000で半径1.1セル", "grasslandOnly": true, "grasslandOnlyDoc": "開墾は草原バイオームを農地へ変える。森は伐採が必要（手順が増える）"}, "migration": {"floodRiskTrigger": 0.5, "overCapacityTicks": 20, "overCapacityTicksDoc": "P > Kc が20 tick続くと人口が流出し、次の候補地に新しい集落ができる"}}, "roads": {"costFormula": "1 + 8×傾斜² + 川(橋)6 + 森林1.5 + 既存道路0.3", "costSlope": 8, "costRiver": 6, "costForest": 1.5, "costExistingRoad": 0.3, "budgetNodesPerTick": 4000, "budgetNodesPerTickDoc": "1 tick あたりの Dijkstra 探索ノード数の予算。Worker内で分割実行", "algorithm": "最近傍グラフ＋最小全域木の辺を Dijkstra で接続", "recomputeTriggers": ["新集落の発生", "経路上の標高の変化"], "waterImpassable": true}, "sources": ["計画書 §8 集落・文明エンジン", "Christaller, W. (1933) Die zentralen Orte in Süddeutschland（中心地理論: 都市階層の理論的基礎）", "Malthus, T. (1798) An Essay on the Principle of Population（人口は食料で頭打ちになる）"]}
+{
+  "_doc": "集落・文明エンジンの定数（計画書§8）。居住適性は水・平地・植生・交通から決まり、洪水リスクが配置を自然に制約する。集落はオブジェクト（リスト）として持ち、population/landUse 配列は描画用にラスタライズする。",
+  "suitability": {
+    "weights": {
+      "waterProximity": 0.4,
+      "flatness": 0.3,
+      "vegetation": 0.2,
+      "transport": 0.1
+    },
+    "weightsDoc": "適性 = 水への近さ×0.4 + 平地度×0.3 + 植生×0.2 + 交通×0.1 − 洪水リスク×0.5",
+    "floodRiskPenalty": 0.5,
+    "waterLUT": {
+      "optimalMinCells": 1,
+      "optimalMaxCells": 6,
+      "_doc": "川・湖から1〜6セルが最適。水面そのものは除外。LUTで評価"
+    },
+    "flatness": {
+      "slopeOptimalMax": 0.02,
+      "_doc": "正規化勾配がこれ以下なら平地度1.0、超えたら線形減衰"
+    },
+    "floodRisk": {
+      "handSafe": 0.02,
+      "_doc": "洪水リスクの比高の基準（正規化標高）。hand がこれ以上なら安全（計画書 §20 の handSafe）"
+    },
+    "transport": {
+      "radiusCells": 4,
+      "_doc": "既存の道路・集落からこの距離以内なら交通 1.0、離れるほど線形に 0 へ（計画書 §8.2 の「交通」を定めていないため追加）"
+    }
+  },
+  "spawn": {
+    "intervalTicks": 4,
+    "threshold": 0.62,
+    "minDistanceCells": 8,
+    "initialPop": 20,
+    "initialPopDoc": "村の発生人口（人）",
+    "maxSettlements": {
+      "value": 60,
+      "_doc": "集落数の上限（描画と計算の予算）"
+    },
+    "maxTries": {
+      "value": 5,
+      "_doc": "候補が支える人口（Kc）に満たないとき、別の候補を試す回数"
+    }
+  },
+  "growth": {
+    "logisticR": 0.015,
+    "logisticRDoc": "dP = r×P×(1−P/Kc)。r=0.015/年 は前近代的な人口増加率（0.5〜2%/年の範囲の中央）",
+    "carryCapFoodPerCell": 30,
+    "carryCapFoodPerCellDoc": "Kc は周辺農地の食料生産力から決める。農地1セルあたりの支えられる人口",
+    "tierThresholds": {
+      "town": 500,
+      "city": 3000,
+      "_doc": "人口 ≥500 で町、≥3000 で都市。海に接する町以上は港町（tier 3）"
+    },
+    "farmland": {
+      "radiusPerPop": 0.004,
+      "radiusPerPopDoc": "農地半径（セル）= sqrt(人口×0.004/π)。人口1000で半径1.1セル",
+      "grasslandOnly": true,
+      "grasslandOnlyDoc": "開墾は草原バイオームを農地へ変える。森は伐採が必要（手順が増える）",
+      "vegetation": {
+        "value": 0.3,
+        "_doc": "農地セルの植生密度（耕作で下がる）"
+      }
+    },
+    "migration": {
+      "floodRiskTrigger": 0.5,
+      "overCapacityTicks": 20,
+      "overCapacityTicksDoc": "P > Kc が20 tick続くと人口が流出し、次の候補地に新しい集落ができる",
+      "emigrantFraction": {
+        "value": 0.1,
+        "_doc": "P > Kc が続いたとき流出する人口の割合。新しい集落の人口になる"
+      }
+    },
+    "catchmentRadiusCells": {
+      "value": 6,
+      "_doc": "集落が農地を取れる半径（セル）。M3 で追加"
+    },
+    "moistureFullAt": {
+      "value": 0.25,
+      "_doc": "農地の肥沃度 = min(1, 水分 / この値)。水が足りない土地は支えられる人口が減る"
+    },
+    "farmBiomes": {
+      "value": [
+        "temperateGrassland",
+        "savanna"
+      ],
+      "_doc": "農地にできるバイオーム（grasslandOnly: 森は伐採が必要）"
+    },
+    "radiusPerPopDoc": "（M3 で置き換え）計画書の式では農地が人口の 0.4% しか支えられず、人口が 500 に届かないため、Kc = 農地にできる集水域の肥沃度の合計 × carryCapFoodPerCell とし、農地は人口に応じて集落に近い順に開墾する"
+  },
+  "roads": {
+    "costFormula": "1 + 8×傾斜² + 川(橋)6 + 森林1.5 + 既存道路0.3",
+    "costSlope": 8,
+    "costRiver": 6,
+    "costForest": 1.5,
+    "costExistingRoad": 0.3,
+    "budgetNodesPerTick": 4000,
+    "budgetNodesPerTickDoc": "1 tick あたりの Dijkstra 探索ノード数の予算。Worker内で分割実行",
+    "algorithm": "最近傍グラフ＋最小全域木の辺を Dijkstra で接続",
+    "recomputeTriggers": [
+      "新集落の発生",
+      "経路上の標高の変化"
+    ],
+    "waterImpassable": true
+  },
+  "sources": [
+    "計画書 §8 集落・文明エンジン",
+    "Christaller, W. (1933) Die zentralen Orte in Süddeutschland（中心地理論: 都市階層の理論的基礎）",
+    "Malthus, T. (1798) An Essay on the Principle of Population（人口は食料で頭打ちになる）"
+  ]
+}

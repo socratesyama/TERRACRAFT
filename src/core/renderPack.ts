@@ -5,9 +5,10 @@ import type { World } from './world';
  * 描画に渡す RGBA32F テクスチャ（1セル = 4 float）を PACK_TEXTURES 枚、続けて並べる。
  * 1枚目: R 標高 / G 水面 / B 川 / A 降水(mm/年)
  * 2枚目: R 気温(°C) / G 水分 / B 植生 / A バイオーム番号
+ * 3枚目: R 土地利用(civ/settlements.ts LAND_USE) / G 人口 / B 道路 / A 洪水リスク
  */
 export const PACK_CHANNELS = 4;
-export const PACK_TEXTURES = 2;
+export const PACK_TEXTURES = 3;
 /** 水面が無いセルの G の値 */
 export const NO_WATER = -1;
 
@@ -24,6 +25,7 @@ export function buildRenderPack(w: World, data: DataBundle, out: Float32Array): 
   const { filled, lakeDepth, flowAcc, precip } = w.derived;
   const n = height.length;
   const second = n * PACK_CHANNELS; // 2枚目の先頭
+  const third = second * 2; // 3枚目の先頭
   const { temperature, moisture, biome } = w.derived;
   const lakeMin = data.hydrology.priorityFlood.lakeDepthMin;
   const { flowThreshold, widthFactor } = data.hydrology.river;
@@ -44,5 +46,9 @@ export function buildRenderPack(w: World, data: DataBundle, out: Float32Array): 
     out[second + o + 1] = moisture[i];
     out[second + o + 2] = w.primary.vegetation[i];
     out[second + o + 3] = biome[i];
+    out[third + o] = w.primary.landUse[i];
+    out[third + o + 1] = w.primary.population[i];
+    out[third + o + 2] = w.primary.road[i];
+    out[third + o + 3] = w.derived.floodRisk[i];
   }
 }

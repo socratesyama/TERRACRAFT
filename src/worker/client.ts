@@ -1,11 +1,13 @@
 import type { FromWorker, RenderPack, Stats, ToWorker } from './protocol';
-import type { WorldEvent } from '../core/world';
+import type { Settlement, WorldEvent } from '../core/world';
 
 export interface Snapshot {
   tick: number;
   pack: RenderPack;
   stats: Stats;
+  eventsFrom: number;
   events: WorldEvent[];
+  settlements: Settlement[];
 }
 
 /**
@@ -17,6 +19,7 @@ export class SimulationClient {
   onReady: (size: number) => void = () => {};
   onSnapshot: (s: Snapshot) => void = () => {};
   onError: (message: string) => void = () => {};
+  onDryRun: (lakeMask: Uint8Array) => void = () => {};
 
   constructor() {
     this.worker = new Worker(new URL('./simulation.worker.ts', import.meta.url), {
@@ -29,13 +32,23 @@ export class SimulationClient {
           this.onReady(m.size);
           break;
         case 'snapshot':
-          this.onSnapshot({ tick: m.tick, pack: m.pack, stats: m.stats, events: m.events });
+          this.onSnapshot({
+            tick: m.tick,
+            pack: m.pack,
+            stats: m.stats,
+            eventsFrom: m.eventsFrom,
+            events: m.events,
+            settlements: m.settlements,
+          });
           break;
         case 'error':
           this.onError(m.message);
           break;
+        case 'dryRunResult':
+          this.onDryRun(m.lakeMask);
+          break;
         default:
-          break; // progress / dryRunResult は後続マイルストーンで使う
+          break; // progress は後続マイルストーンで使う
       }
     };
     this.worker.onerror = (e) => this.onError(e.message);

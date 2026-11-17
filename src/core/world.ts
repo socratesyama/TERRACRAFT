@@ -1,5 +1,5 @@
 import type { DataBundle } from './data/schema';
-import { combineHashes, hashFloat32, hashUint8 } from './hash';
+import { combineHashes, hashFloat32, hashInt32, hashUint8 } from './hash';
 
 /** 派生状態を再計算するための dirty フラグ（計画書 §4.2） */
 export const Dirty = {
@@ -33,6 +33,9 @@ export interface DerivedFields {
   biome: Uint8Array;
   distWater: Float32Array;
   distSea: Float32Array; // 海からの距離（セル）
+  hand: Float32Array; // 最寄りの川までの比高（§8.1）
+  drainAcc: Float32Array; // そのセルが流れ込む川の流量
+  floodRisk: Float32Array; // 洪水リスク 0〜1
   scratch: Float32Array; // 植生など、二重バッファが要る計算の作業用
 }
 
@@ -45,11 +48,56 @@ export interface WorldParams {
   windDir: number; // 0〜7（M1で scenarios の windDirection から決める）
 }
 
+/** 集落（オブジェクトのリスト。配列 population / landUse は描画のためにここからラスタライズする §8.3） */
+export interface Settlement {
+  id: number;
+  x: number;
+  y: number;
+  pop: number;
+  tier: 0 | 1 | 2 | 3; // 村 / 町 / 都市 / 港町
+  foundedTick: number;
+  foodBalance: number; // Kc − pop（負なら食料不足）
+  overCapTicks: number; // P > Kc が続いた tick 数
+  droughtTicks: number; // 干ばつが続いた tick 数（0 = 平常）
+}
+
+/** 文明まわりの状態（集落・道路・検出器の基準値）。undo で丸ごと戻せるよう純データにする */
+export interface CivState {
+  nextId: number;
+  /** 道路で結ぶ集落のペア [idA, idB]（まだ結んでいないもの） */
+  roadQueue: [number, number][];
+  /** 結んだ集落のペア（"a-b"） */
+  roadDone: string[];
+  /** 検出器が最後に報告した値（§9.4） */
+  baseline: { riverCells: number; lakes: number; forestShare: number; desertShare: number } | null;
+  /** 種類ごとの最後にログへ出した tick（間引き） */
+  lastEmit: Record<string, number>;
+  /** イベントログの通し番号 */
+  eventSeq: number;
+  /** 直近の Op（因果の紐づけ用 §9.4）。id は Op ログの番号 */
+  recentOps: { id: number; tick: number; x?: number; y?: number }[];
+}
+
 export interface WorldEvent {
   tick: number;
-  kind: 'op' | 'river' | 'lake' | 'forest' | 'desert' | 'settle' | 'flood' | 'erosion' | 'deposit';
+  kind:
+    | 'op'
+    | 'river'
+    | 'lake'
+    | 'forest'
+    | 'desert'
+    | 'settle'
+    | 'flood'
+    | 'erosion'
+    | 'deposit'
+    | 'drought'
+    | 'landslide'
+    | 'road'
+    | 'abandon';
   causeId?: number;
   message: string;
+  /** 通し番号（ログの順序・差分取得用） */
+  seq?: number;
   x?: number;
   y?: number;
 }
@@ -69,6 +117,8 @@ export interface World {
   derived: DerivedFields;
   dirty: number;
   events: WorldEvent[];
+  settlements: Settlement[];
+  civ: CivState;
 }
 
 export const WORLD_VERSION = 1;
@@ -125,10 +175,15 @@ export function allocWorld(data: DataBundle, opts: AllocOptions): World {
       biome: new Uint8Array(n),
       distWater: new Float32Array(n),
       distSea: new Float32Array(n),
+      hand: new Float32Array(n),
+      drainAcc: new Float32Array(n),
+      floodRisk: new Float32Array(n),
       scratch: new Float32Array(n),
     },
     dirty: Dirty.Height | Dirty.Climate | Dirty.Water,
     events: [],
+    settlements: [],
+    civ: { nextId: 1, roadQueue: [], roadDone: [], baseline: null, lastEmit: {}, eventSeq: 0, recentOps: [] },
   };
 }
 
@@ -145,7 +200,20 @@ export function hashWorld(w: World, quantizeScale: number): number {
     hashFloat32(p.population, quantizeScale),
     hashUint8(p.landUse),
     hashFloat32(p.road, quantizeScale),
+    hashSettlements(w),
   ]);
+}
+
+function hashSettlements(w: World): number {
+  const flat = new Int32Array(w.settlements.length * 5);
+  w.settlements.forEach((c, i) => {
+    flat[i * 5] = c.id;
+    flat[i * 5 + 1] = c.x;
+    flat[i * 5 + 2] = c.y;
+    flat[i * 5 + 3] = Math.round(c.pop * 100);
+    flat[i * 5 + 4] = c.tier;
+  });
+  return hashInt32(flat);
 }
 
 /** 派生状態のハッシュ（水文・降水・気温・水分・日照・バイオーム）。同じ seed・同じ入力から同じ値になることの確認用。 */

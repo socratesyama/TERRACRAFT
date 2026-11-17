@@ -1,10 +1,15 @@
 import type { DataBundle } from '../core/data/schema';
 import { biomeKeys } from '../core/climate/climate';
-import { buildWorld, recomputeClimate, recomputeFlow, recomputePrecip, stepClimate } from '../core/pipeline';
+import { flood } from '../core/civ/disasters';
+import { emit } from '../core/events';
+import { restoreWorld, snapshotWorld, type WorldSnapshot } from '../core/history';
+import { applyOp, type Op } from '../core/ops';
+import { buildWorld, refreshDirty, stepWorld } from '../core/pipeline';
+import { findOutlets, priorityFlood } from '../core/hydrology';
 import { buildRenderPack, packByteLength } from '../core/renderPack';
-import { Dirty, type World } from '../core/world';
+import type { World } from '../core/world';
 import { BufferPool } from './bufferPool';
-import type { Op, Post, ToWorker } from './protocol';
+import type { Post, ToWorker } from './protocol';
 
 export type BatchResult = 'busy' | 'idle' | 'stopped';
 
@@ -17,6 +22,10 @@ export class SimulationController {
   private world: World | null = null;
   private pool: BufferPool | null = null;
   private readonly opLog: Op[] = [];
+  /** Op を適用する直前のスナップショット（Undo 用リング §9.3） */
+  private ring: { opIndex: number; snap: WorldSnapshot }[] = [];
+  private redoStack: Op[] = [];
+  private lastSentSeq = 0;
   private running = false;
   private speed = 1;
   private lastTickAt = 0;
@@ -56,7 +65,11 @@ export class SimulationController {
         this.world = buildWorld(this.data, msg.scenarioId, msg.seed, msg.size);
         Object.assign(this.world.params, msg.params);
         this.opLog.length = 0;
-        for (const op of msg.ops ?? []) this.opLog.push(op);
+        this.ring = [];
+        this.redoStack = [];
+        this.lastSentSeq = 0;
+        for (const op of msg.ops ?? []) this.commitOp(this.world, op, false);
+        refreshDirty(this.world, this.data);
         const bytes = packByteLength(this.world.size);
         this.pool = new BufferPool(bytes, this.data.runtime.snapshot.poolSize);
         this.running = false;
@@ -69,20 +82,19 @@ export class SimulationController {
       }
       case 'op': {
         const w = this.requireWorld();
-        this.opLog.push(msg.op); // Op は決して飛ばさない
-        this.applyOp(w, msg.op);
-        if (!this.running) {
-          // 停止中でも、パラメータの変更はすぐ画面に出す（時間は進めない）
-          if (w.dirty & Dirty.Climate) {
-            recomputePrecip(w, this.data);
-            recomputeFlow(w, this.data);
-            recomputeClimate(w, this.data);
-            w.dirty &= ~Dirty.Climate;
-          }
-          this.maybeSnapshot(true);
-        }
+        this.redoStack = [];
+        this.commitOp(w, msg.op, true);
         return;
       }
+      case 'undo':
+        this.undo();
+        return;
+      case 'redo':
+        this.redo();
+        return;
+      case 'dryRunDam':
+        this.dryRunDam(msg.a, msg.b, msg.crest);
+        return;
       case 'play':
         this.requireWorld();
         this.speed = msg.speed;
@@ -103,7 +115,6 @@ export class SimulationController {
         for (const b of msg.buffers) this.pool?.release(b);
         return;
       case 'rewind':
-      case 'dryRunDam':
         this.post({ type: 'error', message: `${msg.type} は M3 で実装予定です` }, []);
         return;
     }
@@ -134,22 +145,82 @@ export class SimulationController {
     return ran > 0 ? 'busy' : 'idle';
   }
 
-  /** Op の適用。M2 ではパラメータ（降水倍率・気温補正）だけ。ほかの Op は M3 で実装する。 */
-  private applyOp(w: World, op: Op): void {
-    if (op.t !== 'param') return;
-    if (op.key === 'rainfallScale' || op.key === 'temperatureBias') {
-      w.params[op.key] = op.value;
-      w.dirty |= Dirty.Climate;
-      return;
+  /**
+   * Op を 1 つ適用する。適用の直前にスナップショットを取り（Undo 用）、ログへ積み、
+   * 因果の紐づけ用に直近の Op として記録する。停止中なら再計算してすぐ画面に出す（時間は進めない）。
+   */
+  private commitOp(w: World, input: Op, refresh: boolean): void {
+    const op: Op = { ...input, tick: w.tick };
+    const opIndex = this.opLog.length;
+    this.ring.push({ opIndex, snap: snapshotWorld(w) });
+    if (this.ring.length > this.data.runtime.history.snapshotRing) this.ring.shift();
+    this.opLog.push(op);
+    const res = applyOp(w, this.data, op);
+    w.dirty |= res.dirty;
+    emit(w, this.data, 'op', res.message, res.x, res.y);
+    w.civ.recentOps.push({ id: opIndex, tick: w.tick, x: res.x, y: res.y });
+    if (w.civ.recentOps.length > 8) w.civ.recentOps.shift();
+    if (res.surge !== undefined) flood(w, this.data, res.surge, `豪雨 ×${res.surge.toFixed(1)}`);
+    if (refresh && !this.running) {
+      refreshDirty(w, this.data);
+      this.maybeSnapshot(true);
     }
-    throw new Error(`パラメータ ${op.key} の変更は M3 で実装予定です`);
+  }
+
+  private undo(): void {
+    const w = this.requireWorld();
+    const last = this.ring.pop();
+    if (!last) return;
+    this.redoStack.push(this.opLog[last.opIndex]!);
+    this.opLog.length = last.opIndex;
+    restoreWorld(w, last.snap);
+    this.lastSentSeq = Math.min(this.lastSentSeq, w.civ.eventSeq);
+    this.afterHistoryChange();
+  }
+
+  private redo(): void {
+    const w = this.requireWorld();
+    const op = this.redoStack.pop();
+    if (!op) return;
+    const keep = this.redoStack.slice();
+    this.commitOp(w, op, true);
+    this.redoStack = keep; // commitOp は redo を消さない（消すのは新しい Op のとき）
+    if (this.running) this.maybeSnapshot(true);
+  }
+
+  private afterHistoryChange(): void {
+    this.running = false;
+    this.maybeSnapshot(true);
+  }
+
+  /** ダムの予測（§9.2 ドライラン）: 適用したと仮定して窪地充填だけ走らせ、新しくできる湖のマスクを返す。世界は変えない。 */
+  private dryRunDam(a: readonly [number, number], b: readonly [number, number], crest: number): void {
+    const w = this.requireWorld();
+    const n = w.size;
+    const height = w.primary.height.slice();
+    const tmp = { ...w, primary: { ...w.primary, height } } as World;
+    applyOp(tmp, this.data, { t: 'dam', tick: w.tick, a, b, crest });
+    const lakeDepth = new Float32Array(n * n);
+    const outlet = findOutlets(n, height, w.params.seaLevel, w.params.edgeMode);
+    priorityFlood(n, height, outlet, this.data.hydrology.priorityFlood.eps, {
+      filled: new Float32Array(n * n),
+      flowDir: new Uint8Array(n * n),
+      order: new Int32Array(n * n),
+      lakeDepth,
+    });
+    const min = this.data.hydrology.priorityFlood.lakeDepthMin;
+    const mask = new Uint8Array(n * n);
+    for (let i = 0; i < mask.length; i++) {
+      if (lakeDepth[i]! > min && w.derived.lakeDepth[i]! <= min && height[i]! >= w.params.seaLevel) mask[i] = 1;
+    }
+    this.post({ type: 'dryRunResult', lakeMask: mask }, [mask.buffer]);
   }
 
   private runTick(): void {
     const w = this.requireWorld();
     const t0 = this.now();
     w.tick++;
-    stepClimate(w, this.data, this.avgTickMs() > this.data.runtime.tick.budgetMs);
+    stepWorld(w, this.data, this.avgTickMs() > this.data.runtime.tick.budgetMs);
     const { degradeWindowTicks } = this.data.runtime.schedule;
     this.recentTickMs.push(this.now() - t0);
     if (this.recentTickMs.length > degradeWindowTicks) this.recentTickMs.shift();
@@ -172,6 +243,8 @@ export class SimulationController {
     if (!buf) return; // 前のスナップショットが返却されていない
     buildRenderPack(w, this.data, new Float32Array(buf));
     this.lastSnapshotAt = t;
+    const from = this.lastSentSeq;
+    this.lastSentSeq = w.civ.eventSeq;
     const avg = this.avgTickMs();
     this.post(
       {
@@ -184,13 +257,15 @@ export class SimulationController {
           degraded: avg > this.data.runtime.tick.budgetMs,
           ...this.worldStats(w),
         },
-        events: [],
+        eventsFrom: from,
+        events: w.events.filter((e) => (e.seq ?? 0) >= from),
+        settlements: w.settlements.map((c) => ({ ...c })),
       },
       [buf],
     );
   }
 
-  private worldStats(w: World): { vegetation: number; biomeShare: number[] } {
+  private worldStats(w: World): { vegetation: number; biomeShare: number[]; undoDepth: number; redoDepth: number } {
     const share = new Array<number>(biomeKeys(this.data).length).fill(0);
     let veg = 0;
     let land = 0;
@@ -202,7 +277,12 @@ export class SimulationController {
         land++;
       }
     }
-    return { vegetation: land > 0 ? veg / land : 0, biomeShare: share.map((c) => c / n) };
+    return {
+      vegetation: land > 0 ? veg / land : 0,
+      biomeShare: share.map((c) => c / n),
+      undoDepth: this.ring.length,
+      redoDepth: this.redoStack.length,
+    };
   }
 
   private requireWorld(): World {

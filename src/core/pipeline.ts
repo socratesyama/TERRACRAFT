@@ -1,3 +1,9 @@
+import { computeHand } from './civ/hand';
+import { landslideStep, stormStep } from './civ/disasters';
+import { resetRoads, roadStep } from './civ/roads';
+import { computeCatchments, growthStep, rasterizeCiv, spawnStep } from './civ/settlements';
+import { detect } from './events';
+import { createRng, deriveSeed } from './prng';
 import {
   computeBiome,
   computeDistSea,
@@ -120,6 +126,7 @@ export function recomputeFlow(w: World, data: DataBundle): void {
   const inf = data.hydrology.infiltration;
   computeRunoff(d.precip, w.primary.vegetation, inf.base, inf.perVegetation, d.runoff);
   accumulateFlow(w.size, d.order, w.floodReached, d.flowDir, d.runoff, d.flowAcc);
+  computeHand(w, data); // 洪水リスク（§8.1）は流量に依存するので一緒に更新する
 }
 
 /** 気温 → 水分（川・湖の近さを含む）→ バイオーム。 */
@@ -158,6 +165,37 @@ export function stepClimate(w: World, data: DataBundle, degraded: boolean): void
   if (w.tick % vegInterval === 0) growVegetation(w, data, vegInterval);
 }
 
+/** dirty フラグに応じた再計算（Op の適用後、または tick の頭）。標高が変わったら道路も引き直す。 */
+export function refreshDirty(w: World, data: DataBundle): void {
+  if (w.dirty & Dirty.Height) {
+    recomputeDerived(w, data);
+    resetRoads(w);
+  } else if (w.dirty & Dirty.Climate) {
+    recomputePrecip(w, data);
+    recomputeFlow(w, data);
+    recomputeClimate(w, data);
+    w.dirty &= ~Dirty.Climate;
+  }
+}
+
+/**
+ * 1 tick の世界の更新（§10.1）。呼び出し側が tick を進めたあとに呼ぶ。
+ * 気候・生態系 → 災害 → 集落の発生・成長 → 道路 → 描画用のラスタライズ → 検出器。
+ * 乱数は (seed, tick, 用途) から毎回作り直す: undo で戻しても同じ列が出る。
+ */
+export function stepWorld(w: World, data: DataBundle, degraded: boolean): void {
+  refreshDirty(w, data);
+  stepClimate(w, data, degraded);
+  const rng = (salt: number) => createRng(deriveSeed(w.seed, w.tick * 16 + salt));
+  stormStep(w, data, rng(1));
+  landslideStep(w, data, rng(2));
+  spawnStep(w, data, rng(3));
+  growthStep(w, data, rng(4), computeCatchments(w, data));
+  roadStep(w, data);
+  rasterizeCiv(w, data, computeCatchments(w, data));
+  if (w.tick % 4 === 0) detect(w, data);
+}
+
 /** シナリオから世界を作る（地形 → 水文・降水 → 気候 → 初期植生）。同じ (scenarioId, seed, size) なら同じ結果。 */
 export function buildWorld(
   data: DataBundle,
@@ -173,5 +211,6 @@ export function buildWorld(
   seedVegetation(w, data);
   recomputeFlow(w, data); // 植生ぶんの浸透を反映
   recomputeClimate(w, data);
+  detect(w, data); // 基準値を取る
   return w;
 }
