@@ -1,3 +1,12 @@
+import {
+  computeBiome,
+  computeDistSea,
+  computeMoisture,
+  computeSlopeAndSunlight,
+  computeTemperature,
+  growVegetation,
+  seedVegetation,
+} from './climate/climate';
 import { computePrecip, windTravelIndex } from './climate/precip';
 import type { DataBundle } from './data/schema';
 import { accumulateFlow, computeRunoff, findOutlets, priorityFlood } from './hydrology';
@@ -74,43 +83,82 @@ export function buildTerrain(w: World, data: DataBundle, scenario: Scenario): vo
   w.dirty |= Dirty.Height;
 }
 
-/**
- * 派生状態の再計算（M1: 水文と降水）。順序は §5.2 / §7.3:
- * 窪地充填 → 湖 → 降水（湖は水蒸気の供給源）→ 流出 → 流量累積。
- */
-export function recomputeDerived(w: World, data: DataBundle, scenario: Scenario): void {
-  const hyd = data.hydrology;
+/** 窪地充填・湖・流向（標高が変わったとき）と、標高だけで決まる勾配・日照・海からの距離。 */
+export function recomputeTerrainDerived(w: World, data: DataBundle): void {
   const d = w.derived;
   const outlet = findOutlets(w.size, w.primary.height, w.params.seaLevel, w.params.edgeMode);
-  const reached = priorityFlood(w.size, w.primary.height, outlet, hyd.priorityFlood.eps, {
+  w.floodReached = priorityFlood(w.size, w.primary.height, outlet, data.hydrology.priorityFlood.eps, {
     filled: d.filled,
     flowDir: d.flowDir,
     order: d.order,
     lakeDepth: d.lakeDepth,
   });
+  computeSlopeAndSunlight(w, data);
+  computeDistSea(w);
+  w.dirty &= ~Dirty.Height;
+}
+
+/** 降水（§7.3）。湖は水蒸気の供給源なので窪地充填のあとで計算する。 */
+export function recomputePrecip(w: World, data: DataBundle): void {
+  const scenario = resolveScenario(data, w.scenarioId);
   const precip = mergeClimatePrecip(data.climate.precip, scenario.climateOverrides);
   computePrecip(
     w.size,
     w.primary.height,
-    d.lakeDepth,
+    w.derived.lakeDepth,
     w.params.seaLevel,
     w.params.windDir,
-    { ...precip, lakeDepthMin: hyd.priorityFlood.lakeDepthMin },
+    { ...precip, lakeDepthMin: data.hydrology.priorityFlood.lakeDepthMin },
     w.params.rainfallScale,
-    d.precip,
+    w.derived.precip,
   );
-  computeRunoff(
-    d.precip,
-    w.primary.vegetation,
-    hyd.infiltration.base,
-    hyd.infiltration.perVegetation,
-    d.runoff,
-  );
-  accumulateFlow(w.size, d.order, reached, d.flowDir, d.runoff, d.flowAcc);
-  w.dirty &= ~Dirty.Height;
 }
 
-/** シナリオから世界を作る（地形 → 水文・降水）。同じ (scenarioId, seed, size) なら同じ結果。 */
+/** 流出と流量累積。浸透が植生に依存するので、植生が変わったら再計算する。 */
+export function recomputeFlow(w: World, data: DataBundle): void {
+  const d = w.derived;
+  const inf = data.hydrology.infiltration;
+  computeRunoff(d.precip, w.primary.vegetation, inf.base, inf.perVegetation, d.runoff);
+  accumulateFlow(w.size, d.order, w.floodReached, d.flowDir, d.runoff, d.flowAcc);
+}
+
+/** 気温 → 水分（川・湖の近さを含む）→ バイオーム。 */
+export function recomputeClimate(w: World, data: DataBundle): void {
+  computeTemperature(w, data);
+  computeMoisture(w, data);
+  computeBiome(w, data);
+}
+
+/** 世界の全派生状態を、一次状態から作り直す（初期化・標高の変更・シーク用）。 */
+export function recomputeDerived(w: World, data: DataBundle): void {
+  recomputeTerrainDerived(w, data);
+  recomputePrecip(w, data);
+  recomputeFlow(w, data); // 初期の植生は 0（川の位置を決めるため）
+  recomputeClimate(w, data);
+  w.dirty &= ~Dirty.Climate;
+}
+
+/**
+ * 1 tick ぶんの気候・生態系の更新（§10.1 の 2・3・5・6 段）。
+ * Climate が dirty なら降水から、そうでなければ moistureBiomeIntervalTicks ごとに水分・バイオームを更新する。
+ * 植生は毎 tick（高速モードでは vegetationIntervalDegradedTicks ごと、dt をその分だけ進める）。
+ */
+export function stepClimate(w: World, data: DataBundle, degraded: boolean): void {
+  const sch = data.runtime.schedule;
+  if (w.dirty & Dirty.Climate) {
+    recomputePrecip(w, data);
+    recomputeFlow(w, data);
+    recomputeClimate(w, data);
+    w.dirty &= ~Dirty.Climate;
+  } else if (w.tick % sch.moistureBiomeIntervalTicks === 0) {
+    recomputeFlow(w, data);
+    recomputeClimate(w, data);
+  }
+  const vegInterval = degraded ? sch.vegetationIntervalDegradedTicks : 1;
+  if (w.tick % vegInterval === 0) growVegetation(w, data, vegInterval);
+}
+
+/** シナリオから世界を作る（地形 → 水文・降水 → 気候 → 初期植生）。同じ (scenarioId, seed, size) なら同じ結果。 */
 export function buildWorld(
   data: DataBundle,
   scenarioId: string,
@@ -119,7 +167,11 @@ export function buildWorld(
 ): World {
   const scenario = resolveScenario(data, scenarioId);
   const w = allocWorld(data, { seed, size });
+  w.scenarioId = scenarioId;
   buildTerrain(w, data, scenario);
-  recomputeDerived(w, data, scenario);
+  recomputeDerived(w, data);
+  seedVegetation(w, data);
+  recomputeFlow(w, data); // 植生ぶんの浸透を反映
+  recomputeClimate(w, data);
   return w;
 }

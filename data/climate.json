@@ -36,6 +36,11 @@
       "base": 4,
       "unit": "K",
       "_doc": "季節振幅の基本値。内陸ほど大きく、海沿いほど小さくする"
+    },
+    "seaLevelBaseTemp": {
+      "value": 24,
+      "unit": "°C",
+      "_doc": "南端・海面高度の年平均気温（計画書 §7.2 の T0）。計画書は値を定めていないため出発点として追加（要確認）。北端は latitudeGradient だけ低い。島プリセットで熱帯〜温帯になる値"
     }
   },
   "wind": {
@@ -60,12 +65,30 @@
     "waterProximityWeight": 0.3,
     "smoothPasses": 2,
     "_doc": "水分 = clamp01(降水×k1 + 川・湖の近さ×k2) → 3×3平滑化2回",
-    "precipWeightDoc": "水分 = clamp01(降水mm/4000 × precipWeight + 水域近接 × waterProximityWeight)。moisture 0.0625 ≒ 250mm（砂漠線）と対応する"
+    "precipWeightDoc": "水分 = clamp01(降水mm/4000 × precipWeight + 水域近接 × waterProximityWeight)。moisture 0.0625 ≒ 250mm（砂漠線）と対応する",
+    "waterProximityRadius": {
+      "value": 6,
+      "unit": "cell",
+      "_doc": "川・湖・海からこの距離まで近さボーナスが線形に減る（計画書 §7.4 の「近さボーナス」の範囲）。計画書は値を定めていないため出発点として追加（要確認）"
+    },
+    "precipFullMm": {
+      "value": 4000,
+      "unit": "mm/year",
+      "_doc": "水分 1.0 に相当する年降水量（moisture.precipWeightDoc の 降水mm/4000）"
+    }
   },
   "sunlight": {
     "ambient": 0.4,
     "direct": 0.6,
-    "_doc": "日照 = 0.4 + 0.6 × max(0, dot(法線, 太陽方向))。北斜面は暗く成長が遅い"
+    "_doc": "日照 = 0.4 + 0.6 × max(0, dot(法線, 太陽方向))。北斜面は暗く成長が遅い",
+    "sunDir": {
+      "value": [
+        -0.3,
+        -0.5,
+        0.8
+      ],
+      "_doc": "太陽方向（x:東, y:北, z:上）。北半球の想定で南西の高い位置にあり、北向き斜面が暗くなる。季節変化は M3 以降（要確認）"
+    }
   },
   "albedo": {
     "ocean": 0.06,

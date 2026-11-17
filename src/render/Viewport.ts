@@ -1,5 +1,6 @@
 import {
   Color,
+  Vector3,
   DataTexture,
   FloatType,
   Mesh,
@@ -23,11 +24,18 @@ export interface ViewportOptions {
   heightScale: number;
   /** 降水レイヤーの色の上限 mm/年（runtime.json render.precipLayerMaxMm） */
   precipMaxMm: number;
+  temperatureMinC: number;
+  temperatureMaxC: number;
+  /** バイオーム番号順の表示色（#rrggbb）。runtime.json render.biomeColors と climate.biomeKeys から作る */
+  biomeColors: string[];
+  bareColor: string;
   devicePixelRatioMax: number;
   devicePixelRatioMaxMobile: number;
 }
 
-export type LayerIndex = 0 | 1; // 0: 地形, 1: 降水
+/** 0: 地形, 1: 降水, 2: 気温, 3: 水分, 4: バイオーム, 5: 植生 */
+export type LayerIndex = 0 | 1 | 2 | 3 | 4 | 5;
+const MAX_BIOMES = 16;
 
 /**
  * 素の Three.js のホスト（react-three-fiber は使わない: 計画書 §3, §12）。
@@ -42,9 +50,11 @@ export class TerrainViewport {
   private readonly controls: OrbitControls;
   private readonly geometry: PlaneGeometry;
   private readonly texture: DataTexture;
+  private readonly texture2: DataTexture;
   private readonly terrainMaterial: ShaderMaterial;
   private readonly waterMaterial: ShaderMaterial;
   private readonly textureData: Float32Array;
+  private readonly textureData2: Float32Array;
   private readonly observer: ResizeObserver;
   private raf = 0;
   private disposed = false;
@@ -79,9 +89,26 @@ export class TerrainViewport {
     this.texture.magFilter = NearestFilter;
     this.texture.generateMipmaps = false;
     this.texture.needsUpdate = true;
+    this.textureData2 = new Float32Array(size * size * PACK_CHANNELS);
+    this.texture2 = new DataTexture(this.textureData2, size, size, RGBAFormat, FloatType);
+    this.texture2.minFilter = NearestFilter;
+    this.texture2.magFilter = NearestFilter;
+    this.texture2.generateMipmaps = false;
+    this.texture2.needsUpdate = true;
+
+    const colors: Vector3[] = [];
+    for (let i = 0; i < MAX_BIOMES; i++) {
+      const c = new Color(opts.biomeColors[i] ?? opts.bareColor);
+      colors.push(new Vector3(c.r, c.g, c.b));
+    }
+    const bare = new Color(opts.bareColor);
 
     const uniforms = {
       uData: { value: this.texture },
+      uData2: { value: this.texture2 },
+      uTempRange: { value: [opts.temperatureMinC, opts.temperatureMaxC] },
+      uBiomeColors: { value: colors },
+      uBare: { value: new Vector3(bare.r, bare.g, bare.b) },
       uSize: { value: size },
       uHeightScale: { value: opts.heightScale },
       uSeaLevel: { value: opts.seaLevel },
@@ -120,8 +147,11 @@ export class TerrainViewport {
 
   /** Worker からのスナップショット（renderPack.ts のレイアウト）を反映する。呼び出し側はコピー後にバッファを返却できる。 */
   setData(pack: Float32Array): void {
-    this.textureData.set(pack);
+    const half = this.textureData.length;
+    this.textureData.set(pack.subarray(0, half));
+    this.textureData2.set(pack.subarray(half, half * 2));
     this.texture.needsUpdate = true;
+    this.texture2.needsUpdate = true;
   }
 
   setLayer(layer: LayerIndex): void {
@@ -154,6 +184,7 @@ export class TerrainViewport {
     this.terrainMaterial.dispose();
     this.waterMaterial.dispose();
     this.texture.dispose();
+    this.texture2.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }

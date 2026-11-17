@@ -29,8 +29,12 @@ export const TERRAIN_VERTEX = /* glsl */ `
 
 export const TERRAIN_FRAGMENT = /* glsl */ `
   ${COMMON}
+  uniform sampler2D uData2;
   uniform float uSeaLevel;
   uniform float uPrecipMax;
+  uniform vec2 uTempRange;
+  uniform vec3 uBiomeColors[16];
+  uniform vec3 uBare;
   uniform int uLayer;
   varying vec2 vTuv;
 
@@ -56,8 +60,21 @@ export const TERRAIN_FRAGMENT = /* glsl */ `
     return t < 0.5 ? mix(a, b, t * 2.0) : mix(b, c, (t - 0.5) * 2.0);
   }
 
+  // 気温: 寒（青）→ 中間（白に近い）→ 暑（赤）
+  vec3 tempRamp(float t) {
+    vec3 a = vec3(0.17, 0.35, 0.72);
+    vec3 b = vec3(0.93, 0.93, 0.85);
+    vec3 c = vec3(0.80, 0.25, 0.15);
+    return t < 0.5 ? mix(a, b, t * 2.0) : mix(b, c, (t - 0.5) * 2.0);
+  }
+
+  vec3 moistRamp(float t) {
+    return mix(vec3(0.86, 0.78, 0.55), vec3(0.12, 0.45, 0.50), t);
+  }
+
   void main() {
     vec4 d = texture2D(uData, vTuv);
+    vec4 e = texture2D(uData2, vTuv);
     float px = 1.0 / uSize;
     float hE = texture2D(uData, vTuv + vec2(px, 0.0)).r;
     float hW = texture2D(uData, vTuv - vec2(px, 0.0)).r;
@@ -71,6 +88,19 @@ export const TERRAIN_FRAGMENT = /* glsl */ `
     vec3 base;
     if (uLayer == 1) {
       base = precipRamp(clamp(d.a / uPrecipMax, 0.0, 1.0));
+    } else if (uLayer == 2) {
+      base = tempRamp(clamp((e.r - uTempRange.x) / (uTempRange.y - uTempRange.x), 0.0, 1.0));
+    } else if (uLayer == 3) {
+      base = moistRamp(clamp(e.g, 0.0, 1.0));
+    } else if (uLayer == 4 || uLayer == 5) {
+      // バイオーム色を、実際の植生密度で裸地色へ寄せる（潜在植生と実際の植生の両方を見せる §7.6）
+      int id = int(e.a + 0.5);
+      vec3 biomeColor = uBiomeColors[id];
+      float cover = clamp(0.2 + 0.8 * e.b, 0.0, 1.0);
+      bool special = id < 4; // 水域・雪・海岸・湿地は植生で薄めない
+      vec3 land = special ? biomeColor : mix(uBare, biomeColor, cover);
+      base = uLayer == 4 ? land : mix(vec3(0.85, 0.80, 0.62), vec3(0.10, 0.45, 0.20), clamp(e.b, 0.0, 1.0));
+      base = mix(base, vec3(0.16, 0.42, 0.72), d.b); // 川
     } else {
       base = hypsometric(max(d.r, uSeaLevel));
       base = mix(base, vec3(0.16, 0.42, 0.72), d.b); // 川

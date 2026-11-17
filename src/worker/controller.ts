@@ -1,7 +1,8 @@
 import type { DataBundle } from '../core/data/schema';
-import { buildWorld } from '../core/pipeline';
-import { PACK_CHANNELS, buildRenderPack, packByteLength } from '../core/renderPack';
-import type { World } from '../core/world';
+import { biomeKeys } from '../core/climate/climate';
+import { buildWorld, recomputeClimate, recomputeFlow, recomputePrecip, stepClimate } from '../core/pipeline';
+import { buildRenderPack, packByteLength } from '../core/renderPack';
+import { Dirty, type World } from '../core/world';
 import { BufferPool } from './bufferPool';
 import type { Op, Post, ToWorker } from './protocol';
 
@@ -14,7 +15,6 @@ export type BatchResult = 'busy' | 'idle' | 'stopped';
  */
 export class SimulationController {
   private world: World | null = null;
-  private packCache: Float32Array | null = null;
   private pool: BufferPool | null = null;
   private readonly opLog: Op[] = [];
   private running = false;
@@ -55,8 +55,6 @@ export class SimulationController {
       case 'init': {
         this.world = buildWorld(this.data, msg.scenarioId, msg.seed, msg.size);
         Object.assign(this.world.params, msg.params);
-        this.packCache = new Float32Array(this.world.size * this.world.size * PACK_CHANNELS);
-        buildRenderPack(this.world, this.data, this.packCache);
         this.opLog.length = 0;
         for (const op of msg.ops ?? []) this.opLog.push(op);
         const bytes = packByteLength(this.world.size);
@@ -69,10 +67,22 @@ export class SimulationController {
         this.maybeSnapshot(true);
         return;
       }
-      case 'op':
-        this.requireWorld();
-        this.opLog.push(msg.op); // 適用は M1 以降（Op は決して飛ばさない）
+      case 'op': {
+        const w = this.requireWorld();
+        this.opLog.push(msg.op); // Op は決して飛ばさない
+        this.applyOp(w, msg.op);
+        if (!this.running) {
+          // 停止中でも、パラメータの変更はすぐ画面に出す（時間は進めない）
+          if (w.dirty & Dirty.Climate) {
+            recomputePrecip(w, this.data);
+            recomputeFlow(w, this.data);
+            recomputeClimate(w, this.data);
+            w.dirty &= ~Dirty.Climate;
+          }
+          this.maybeSnapshot(true);
+        }
         return;
+      }
       case 'play':
         this.requireWorld();
         this.speed = msg.speed;
@@ -124,11 +134,22 @@ export class SimulationController {
     return ran > 0 ? 'busy' : 'idle';
   }
 
+  /** Op の適用。M2 ではパラメータ（降水倍率・気温補正）だけ。ほかの Op は M3 で実装する。 */
+  private applyOp(w: World, op: Op): void {
+    if (op.t !== 'param') return;
+    if (op.key === 'rainfallScale' || op.key === 'temperatureBias') {
+      w.params[op.key] = op.value;
+      w.dirty |= Dirty.Climate;
+      return;
+    }
+    throw new Error(`パラメータ ${op.key} の変更は M3 で実装予定です`);
+  }
+
   private runTick(): void {
     const w = this.requireWorld();
     const t0 = this.now();
-    // M0: 各システム（水文・気候・植生…）は M1 以降でここに接続する。
     w.tick++;
+    stepClimate(w, this.data, this.avgTickMs() > this.data.runtime.tick.budgetMs);
     const { degradeWindowTicks } = this.data.runtime.schedule;
     this.recentTickMs.push(this.now() - t0);
     if (this.recentTickMs.length > degradeWindowTicks) this.recentTickMs.shift();
@@ -149,8 +170,7 @@ export class SimulationController {
     if (!force && t - this.lastSnapshotAt < minInterval) return;
     const buf = pool.acquire();
     if (!buf) return; // 前のスナップショットが返却されていない
-    if (!this.packCache) return;
-    new Float32Array(buf).set(this.packCache);
+    buildRenderPack(w, this.data, new Float32Array(buf));
     this.lastSnapshotAt = t;
     const avg = this.avgTickMs();
     this.post(
@@ -162,11 +182,27 @@ export class SimulationController {
           tick: w.tick,
           avgTickMs: avg,
           degraded: avg > this.data.runtime.tick.budgetMs,
+          ...this.worldStats(w),
         },
         events: [],
       },
       [buf],
     );
+  }
+
+  private worldStats(w: World): { vegetation: number; biomeShare: number[] } {
+    const share = new Array<number>(biomeKeys(this.data).length).fill(0);
+    let veg = 0;
+    let land = 0;
+    const n = w.size * w.size;
+    for (let i = 0; i < n; i++) {
+      share[w.derived.biome[i]!]!++;
+      if (w.primary.height[i]! >= w.params.seaLevel) {
+        veg += w.primary.vegetation[i]!;
+        land++;
+      }
+    }
+    return { vegetation: land > 0 ? veg / land : 0, biomeShare: share.map((c) => c / n) };
   }
 
   private requireWorld(): World {

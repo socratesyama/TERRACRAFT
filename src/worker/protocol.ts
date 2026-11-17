@@ -52,6 +52,10 @@ export interface Stats {
   avgTickMs: number;
   /** 速度を自動的に落としているか（§10.3 の高速モード） */
   degraded: boolean;
+  /** 陸セルの平均植生密度 0〜1 */
+  vegetation: number;
+  /** バイオームごとのセル数の割合（番号は climate.biomeKeys の順、全セル中） */
+  biomeShare: number[];
 }
 
 export type FromWorker =

@@ -58,11 +58,39 @@
     "heightScale": 40,
     "heightScaleDoc": "描画の垂直誇張: 正規化標高 1.0 を何セル分の高さで描くか（実際は 1.0=3000m=6セル。見やすさのため誇張）",
     "precipLayerMaxMm": 2500,
-    "precipLayerMaxMmDoc": "降水レイヤーの色の上限（mm/年）。風上斜面の降水の目安（climate.json precip の doc）"
+    "precipLayerMaxMmDoc": "降水レイヤーの色の上限（mm/年）。風上斜面の降水の目安（climate.json precip の doc）",
+    "temperatureLayerRange": {
+      "minC": -15,
+      "maxC": 30,
+      "_doc": "気温レイヤーの色の範囲（°C）"
+    },
+    "biomeColors": {
+      "water": "#2a6f9e",
+      "snow": "#f1f5f9",
+      "coast": "#d8c98f",
+      "wetland": "#4f8f7a",
+      "tundra": "#aeb8a5",
+      "boreal": "#3f6b52",
+      "temperateRainforest": "#1f6b4a",
+      "temperateForest": "#3f8a45",
+      "temperateGrassland": "#a6b85a",
+      "desert": "#d9bf82",
+      "savanna": "#c4a64e",
+      "tropicalSeasonalForest": "#2f7d3a",
+      "tropicalRainforest": "#14602f",
+      "bare": "#8a7a63",
+      "_doc": "バイオームレイヤーの表示色。bare は植生が無い地面（実際の植生密度が低いほどこの色に寄る）"
+    }
   },
   "ui": {
     "statsHz": 4,
-    "_doc": "統計パネルの更新頻度（Hz）。スナップショットごとではなく間引く（§13.1 worldMirror）"
+    "_doc": "統計パネルの更新頻度（Hz）。スナップショットごとではなく間引く（§13.1 worldMirror）",
+    "devRainfallScale": {
+      "min": 0.2,
+      "max": 2,
+      "step": 0.1,
+      "_doc": "開発者向けパネルの降水倍率スライダ（§21 の方針で『乾燥』は通常ツールにしない）"
+    }
   },
   "sources": [
     "docs/implementation-plan.md §9.3, §9.4, §10, §11, §12, §15.2"

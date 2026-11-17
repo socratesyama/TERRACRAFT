@@ -3,7 +3,7 @@ import type { DataBundle } from '../core/data/schema';
 import { SimulationClient, type Snapshot } from '../worker/client';
 import { t } from './i18n';
 import { PauseIcon, PlayIcon } from './Icon';
-import { LayerPanel, ScenarioPanel, StatsPanel } from './panels';
+import { BiomePanel, DevPanel, LayerPanel, ScenarioPanel, StatsPanel } from './panels';
 import { useUiStore, useWorldMirror } from './store';
 import { Viewport } from './Viewport';
 
@@ -74,6 +74,7 @@ export function App({ data }: { data: DataBundle }) {
       <main className="stage">
         <Viewport
           gridSize={gridSize}
+          data={data}
           seaLevel={data.scale.seaLevel.value}
           heightScale={data.runtime.render.heightScale}
           precipMaxMm={data.runtime.render.precipLayerMaxMm}
@@ -84,7 +85,14 @@ export function App({ data }: { data: DataBundle }) {
         <aside className="side">
           <ScenarioPanel data={data} />
           <StatsPanel data={data} seed={seed} size={gridSize} />
-          <LayerPanel precipMaxMm={data.runtime.render.precipLayerMaxMm} />
+          <LayerPanel data={data} />
+          <BiomePanel data={data} />
+          <DevPanel
+            data={data}
+            onRainfall={(v) =>
+              clientRef.current?.send({ type: 'op', op: { t: 'param', tick: 0, key: 'rainfallScale', value: v } })
+            }
+          />
         </aside>
       </main>
 

@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 
-export type LayerId = 'terrain' | 'precip' | 'temperature' | 'moisture' | 'erosion';
+export type LayerId = 'terrain' | 'precip' | 'temperature' | 'moisture' | 'biome' | 'vegetation' | 'erosion';
 
 /** UI 状態のみ。World の配列は入れない（計画書 §3, §13.1）。 */
 interface UiState {
   scenarioId: string;
   setScenarioId: (id: string) => void;
+  rainfallScale: number;
+  setRainfallScale: (v: number) => void;
   layer: LayerId;
   setLayer: (layer: LayerId) => void;
   playing: boolean;
@@ -19,8 +21,10 @@ interface UiState {
 
 export const useUiStore = create<UiState>()((set) => ({
   scenarioId: 'island',
-  setScenarioId: (scenarioId) => set({ scenarioId, playing: false }),
-  layer: 'terrain',
+  setScenarioId: (scenarioId) => set({ scenarioId, playing: false, rainfallScale: 1 }),
+  rainfallScale: 1,
+  setRainfallScale: (rainfallScale) => set({ rainfallScale }),
+  layer: 'biome',
   setLayer: (layer) => set({ layer }),
   playing: false,
   speed: 1,
@@ -37,12 +41,16 @@ interface WorldMirrorState {
   tick: number;
   avgTickMs: number;
   degraded: boolean;
-  update: (m: Pick<WorldMirrorState, 'tick' | 'avgTickMs' | 'degraded'>) => void;
+  vegetation: number;
+  biomeShare: number[];
+  update: (m: Pick<WorldMirrorState, 'tick' | 'avgTickMs' | 'degraded' | 'vegetation' | 'biomeShare'>) => void;
 }
 
 export const useWorldMirror = create<WorldMirrorState>()((set) => ({
   tick: 0,
   avgTickMs: 0,
   degraded: false,
+  vegetation: 0,
+  biomeShare: [],
   update: (m) => set(m),
 }));

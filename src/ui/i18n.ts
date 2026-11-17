@@ -14,14 +14,26 @@ const ja = {
   'error.webgl': '3D表示を初期化できませんでした',
   'panel.stats': '統計',
   'panel.layers': 'レイヤー',
-  'panel.layers.soon': '気温・水分・侵食は後のマイルストーンで使えます',
+  'panel.layers.soon': '侵食は後のマイルストーンで使えます',
   'panel.scenario': '地形プリセット',
   'legend.precip': '年降水量',
+  'legend.cold': '寒',
+  'legend.hot': '暑',
+  'legend.moisture': '水分',
+  'legend.vegetation': '植生密度',
+  'legend.bare': '裸地',
+  'legend.dense': '密',
+  'stats.vegetation': '陸の平均植生',
+  'panel.biomes': 'バイオームの割合',
+  'panel.dev': '開発者向け',
+  'dev.rainfall': '降水倍率',
   'legend.dry': '乾燥',
   'legend.wet': '湿潤',
   'layer.terrain': '地形',
   'layer.precip': '降水',
   'layer.temperature': '気温',
+  'layer.biome': 'バイオーム',
+  'layer.vegetation': '植生',
   'layer.moisture': '水分',
   'layer.erosion': '侵食',
   'stats.seed': 'シード',
@@ -30,6 +42,27 @@ const ja = {
   'stats.tickCost': '1 tick の計算時間',
   'stats.tickBudget': '予算',
 } as const;
+
+/** バイオームの表示名（キーは data/ecology-biomes.json と特別区分 water/snow/coast/wetland） */
+const biomeNames: Readonly<Record<string, string>> = {
+  water: '水域',
+  snow: '高山（雪）',
+  coast: '海岸',
+  wetland: '湿地',
+  tundra: 'ツンドラ',
+  boreal: '亜寒帯林',
+  temperateRainforest: '温帯雨林',
+  temperateForest: '温帯林',
+  temperateGrassland: '温帯草原',
+  desert: '砂漠',
+  savanna: 'サバンナ',
+  tropicalSeasonalForest: '熱帯季節林',
+  tropicalRainforest: '熱帯雨林',
+};
+
+export function biomeLabel(key: string): string {
+  return biomeNames[key] ?? key;
+}
 
 export type MessageKey = keyof typeof ja;
 

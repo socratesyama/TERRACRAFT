@@ -32,6 +32,8 @@ export interface DerivedFields {
   sunlight: Float32Array;
   biome: Uint8Array;
   distWater: Float32Array;
+  distSea: Float32Array; // 海からの距離（セル）
+  scratch: Float32Array; // 植生など、二重バッファが要る計算の作業用
 }
 
 /** UI から変えられる世界のパラメータ。初期値は data/ から取る（恒等値だけが直書き） */
@@ -58,6 +60,9 @@ export interface World {
   cellSize: number;
   maxElevation: number;
   seed: number;
+  scenarioId: string;
+  /** Priority-Flood が到達したセル数（order の有効な長さ） */
+  floodReached: number;
   tick: number;
   params: WorldParams;
   primary: PrimaryFields;
@@ -86,6 +91,8 @@ export function allocWorld(data: DataBundle, opts: AllocOptions): World {
     cellSize: data.scale.cellSize.value,
     maxElevation: data.scale.maxElevation.value,
     seed: opts.seed >>> 0,
+    scenarioId: '',
+    floodReached: 0,
     tick: 0,
     params: {
       seaLevel: data.scale.seaLevel.value,
@@ -117,6 +124,8 @@ export function allocWorld(data: DataBundle, opts: AllocOptions): World {
       sunlight: new Float32Array(n),
       biome: new Uint8Array(n),
       distWater: new Float32Array(n),
+      distSea: new Float32Array(n),
+      scratch: new Float32Array(n),
     },
     dirty: Dirty.Height | Dirty.Climate | Dirty.Water,
     events: [],
@@ -139,7 +148,7 @@ export function hashWorld(w: World, quantizeScale: number): number {
   ]);
 }
 
-/** 派生状態のハッシュ（水文・降水）。同じ seed・同じ入力から同じ値になることの確認用。 */
+/** 派生状態のハッシュ（水文・降水・気温・水分・日照・バイオーム）。同じ seed・同じ入力から同じ値になることの確認用。 */
 export function hashDerived(w: World, quantizeScale: number): number {
   const d = w.derived;
   return combineHashes([
@@ -149,5 +158,9 @@ export function hashDerived(w: World, quantizeScale: number): number {
     hashFloat32(d.runoff, quantizeScale),
     hashFloat32(d.precip, quantizeScale),
     hashFloat32(d.lakeDepth, quantizeScale),
+    hashFloat32(d.temperature, quantizeScale),
+    hashFloat32(d.moisture, quantizeScale),
+    hashFloat32(d.sunlight, quantizeScale),
+    hashUint8(d.biome),
   ]);
 }

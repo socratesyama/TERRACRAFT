@@ -287,3 +287,42 @@ button.primary:hover:not(:disabled) {
   font-size: var(--text-sm);
   color: var(--ink-muted);
 }
+
+.legend-temp {
+  background: linear-gradient(to right, rgb(43, 89, 184), rgb(237, 237, 217), rgb(204, 64, 38));
+}
+.legend-moist {
+  background: linear-gradient(to right, rgb(219, 199, 140), rgb(31, 115, 128));
+}
+.legend-veg {
+  background: linear-gradient(to right, rgb(217, 204, 158), rgb(26, 115, 51));
+}
+.swatches {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--space-2);
+  border-radius: 2px;
+}
+.slider {
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.slider input {
+  width: 100%;
+  accent-color: var(--accent);
+  min-height: 44px;
+}
+.kv-row {
+  display: contents;
+}

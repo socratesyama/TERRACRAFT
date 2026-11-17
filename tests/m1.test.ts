@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadData } from '../src/core/data/loader';
 import { DX, DY } from '../src/core/hydrology';
 import { SHOWCASE_SCENARIOS, buildWorld } from '../src/core/pipeline';
-import { PACK_CHANNELS, buildRenderPack, packByteLength } from '../src/core/renderPack';
+import { PACK_CHANNELS, PACK_TEXTURES, buildRenderPack, packByteLength } from '../src/core/renderPack';
 import { hashDerived, hashWorld } from '../src/core/world';
 import { SimulationController } from '../src/worker/controller';
 import type { FromWorker } from '../src/worker/protocol';
@@ -57,11 +57,11 @@ describe.each(SHOWCASE_SCENARIOS)('M1 地形・水文・降水: %s', (id) => {
     }
   });
 
-  it('描画パックは size²×4 float で、標高と降水を写している', () => {
+  it('描画パックは size²×4 float を2枚 で、標高と降水を写している', () => {
     const w = buildWorld(data, id, SEED, SIZE);
     const out = new Float32Array(packByteLength(w.size) / 4);
     buildRenderPack(w, data, out);
-    expect(out.length).toBe(w.size * w.size * PACK_CHANNELS);
+    expect(out.length).toBe(w.size * w.size * PACK_CHANNELS * PACK_TEXTURES);
     expect(out[0]).toBe(w.primary.height[0]);
     expect(out[3]).toBe(w.derived.precip[0]);
   });
