@@ -155,7 +155,14 @@ export class SimulationController {
     this.ring.push({ opIndex, snap: snapshotWorld(w) });
     if (this.ring.length > this.data.runtime.history.snapshotRing) this.ring.shift();
     this.opLog.push(op);
-    const res = applyOp(w, this.data, op);
+    let res: ReturnType<typeof applyOp>;
+    try {
+      res = applyOp(w, this.data, op);
+    } catch (e) {
+      this.opLog.pop(); // 失敗した Op は無かったことにする
+      this.ring.pop();
+      throw e;
+    }
     w.dirty |= res.dirty;
     emit(w, this.data, 'op', res.message, res.x, res.y);
     w.civ.recentOps.push({ id: opIndex, tick: w.tick, x: res.x, y: res.y });
