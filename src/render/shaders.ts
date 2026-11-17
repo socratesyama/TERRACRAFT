@@ -30,6 +30,12 @@ export const TERRAIN_VERTEX = /* glsl */ `
 export const TERRAIN_FRAGMENT = /* glsl */ `
   ${COMMON}
   uniform sampler2D uData2;
+  uniform sampler2D uData3;
+  uniform sampler2D uPreview;
+  uniform vec3 uFarm;
+  uniform vec3 uRoad;
+  uniform vec3 uFlood;
+  uniform vec3 uPreviewColor;
   uniform float uSeaLevel;
   uniform float uPrecipMax;
   uniform vec2 uTempRange;
@@ -75,6 +81,7 @@ export const TERRAIN_FRAGMENT = /* glsl */ `
   void main() {
     vec4 d = texture2D(uData, vTuv);
     vec4 e = texture2D(uData2, vTuv);
+    vec4 f = texture2D(uData3, vTuv);
     float px = 1.0 / uSize;
     float hE = texture2D(uData, vTuv + vec2(px, 0.0)).r;
     float hW = texture2D(uData, vTuv - vec2(px, 0.0)).r;
@@ -92,6 +99,8 @@ export const TERRAIN_FRAGMENT = /* glsl */ `
       base = tempRamp(clamp((e.r - uTempRange.x) / (uTempRange.y - uTempRange.x), 0.0, 1.0));
     } else if (uLayer == 3) {
       base = moistRamp(clamp(e.g, 0.0, 1.0));
+    } else if (uLayer == 6) {
+      base = mix(vec3(0.82, 0.84, 0.80), uFlood, clamp(f.a, 0.0, 1.0));
     } else if (uLayer == 4 || uLayer == 5) {
       // バイオーム色を、実際の植生密度で裸地色へ寄せる（潜在植生と実際の植生の両方を見せる §7.6）
       int id = int(e.a + 0.5);
@@ -105,6 +114,14 @@ export const TERRAIN_FRAGMENT = /* glsl */ `
       base = hypsometric(max(d.r, uSeaLevel));
       base = mix(base, vec3(0.16, 0.42, 0.72), d.b); // 川
     }
+    // 農地と道路は、地形・バイオーム・植生の見た目の上に重ねる（ほかのレイヤーは色を読み取るのを邪魔しない）
+    if (uLayer == 0 || uLayer == 4 || uLayer == 5) {
+      if (f.r > 0.5 && f.r < 1.5) base = mix(base, uFarm, 0.55);
+      if (f.b > 0.5) base = mix(base, uRoad, 0.85);
+    }
+    // ダムの予測（新しくできる湖）
+    float pv = texture2D(uPreview, vTuv).r;
+    base = mix(base, uPreviewColor, pv * 0.7);
     gl_FragColor = vec4(base * shade, 1.0);
   }
 `;

@@ -2,7 +2,7 @@ import type { DataBundle } from '../core/data/schema';
 import { SHOWCASE_SCENARIOS, resolveScenario } from '../core/pipeline';
 import { biomeKeys } from '../core/climate/climate';
 import { biomeLabel, t, type MessageKey } from './i18n';
-import { useUiStore, useWorldMirror, type LayerId } from './store';
+import { useUiStore, useWorldMirror, type LayerId, type ToolId } from './store';
 
 const LAYERS: readonly { id: LayerId; label: MessageKey }[] = [
   { id: 'terrain', label: 'layer.terrain' },
@@ -11,6 +11,7 @@ const LAYERS: readonly { id: LayerId; label: MessageKey }[] = [
   { id: 'moisture', label: 'layer.moisture' },
   { id: 'biome', label: 'layer.biome' },
   { id: 'vegetation', label: 'layer.vegetation' },
+  { id: 'flood', label: 'layer.flood' },
   { id: 'erosion', label: 'layer.erosion' },
 ];
 
@@ -227,6 +228,178 @@ export function DevPanel({
           }}
         />
       </label>
+    </section>
+  );
+}
+
+const TOOLS: readonly { id: ToolId; label: MessageKey }[] = [
+  { id: 'view', label: 'tool.view' },
+  { id: 'mountain', label: 'tool.mountain' },
+  { id: 'dig', label: 'tool.dig' },
+  { id: 'afforest', label: 'tool.afforest' },
+  { id: 'deforest', label: 'tool.deforest' },
+  { id: 'dam', label: 'tool.dam' },
+  { id: 'fill', label: 'tool.fill' },
+];
+
+/** 干渉ツール（§9.2）と元に戻す／やり直す（§9.3） */
+export function ToolPanel({
+  data,
+  onUndo,
+  onRedo,
+  onRain,
+}: {
+  data: DataBundle;
+  onUndo: () => void;
+  onRedo: () => void;
+  onRain: () => void;
+}) {
+  const tool = useUiStore((s) => s.tool);
+  const setTool = useUiStore((s) => s.setTool);
+  const radius = useUiStore((s) => s.brushRadius);
+  const setRadius = useUiStore((s) => s.setBrushRadius);
+  const crest = useUiStore((s) => s.damCrest);
+  const setCrest = useUiStore((s) => s.setDamCrest);
+  const undoDepth = useWorldMirror((s) => s.undoDepth);
+  const redoDepth = useWorldMirror((s) => s.redoDepth);
+  const tl = data.runtime.ui.tools;
+  const hint = tool === 'view' ? 'tool.hint.view' : tool === 'dam' ? 'tool.hint.dam' : 'tool.hint.paint';
+  return (
+    <section className="panel" aria-labelledby="tools-title">
+      <h2 id="tools-title">{t('panel.tools')}</h2>
+      <div className="choices wrap" role="radiogroup" aria-label={t('panel.tools')}>
+        {TOOLS.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={tool === id}
+            className={tool === id ? 'choice active' : 'choice'}
+            onClick={() => setTool(id)}
+          >
+            {t(label)}
+          </button>
+        ))}
+      </div>
+      <p className="note">{t(hint)}</p>
+      {tool !== 'view' && tool !== 'dam' && (
+        <label className="slider">
+          <span>
+            {t('tool.radius')} {(radius * 100).toFixed(0)}%
+          </span>
+          <input
+            type="range"
+            min={tl.brushRadius.min}
+            max={tl.brushRadius.max}
+            step={0.01}
+            value={radius}
+            onChange={(e) => setRadius(Number(e.target.value))}
+          />
+        </label>
+      )}
+      {tool === 'dam' && (
+        <label className="slider">
+          <span>
+            {t('tool.crest')} {Math.round(crest * data.scale.maxElevation.value)} m
+          </span>
+          <input
+            type="range"
+            min={tl.damCrest.min}
+            max={tl.damCrest.max}
+            step={0.01}
+            value={crest}
+            onChange={(e) => setCrest(Number(e.target.value))}
+          />
+        </label>
+      )}
+      <div className="row">
+        <button type="button" className="action" onClick={onUndo} disabled={undoDepth === 0}>
+          {t('tool.undo')}
+        </button>
+        <button type="button" className="action" onClick={onRedo} disabled={redoDepth === 0}>
+          {t('tool.redo')}
+        </button>
+        <button type="button" className="action" onClick={onRain}>
+          {t('tool.rain')}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+const KIND_LABEL: Readonly<Record<string, string>> = {
+  op: '操作',
+  river: '川',
+  lake: '湖',
+  forest: '森',
+  desert: '砂漠',
+  settle: '集落',
+  flood: '洪水',
+  drought: '干ばつ',
+  landslide: '土砂',
+  road: '道路',
+  abandon: '放棄',
+  erosion: '侵食',
+  deposit: '堆積',
+};
+
+/** できごとのログ（§9.4）。クリックでその場所へカメラが寄る。原因の操作がある行には印が付く。 */
+export function EventLog({ onFocus }: { onFocus: (x: number, y: number) => void }) {
+  const events = useUiStore((s) => s.events);
+  const rows = events.filter((e) => e.kind !== 'road').slice(-60).reverse();
+  return (
+    <section className="panel" aria-labelledby="events-title">
+      <h2 id="events-title">{t('panel.events')}</h2>
+      {rows.length === 0 ? (
+        <p className="note">{t('events.empty')}</p>
+      ) : (
+        <ul className="events" aria-live="polite">
+          {rows.map((e) => {
+            const focusable = e.x !== undefined && e.y !== undefined;
+            const body = (
+              <>
+                <span className="ev-tick">{e.tick}年</span>
+                <span className={`ev-kind kind-${e.kind}`}>{KIND_LABEL[e.kind] ?? e.kind}</span>
+                <span className="ev-msg">{e.message}</span>
+                {e.causeId !== undefined && (
+                  <span className="ev-cause">
+                    {t('events.cause')} #{e.causeId + 1}
+                  </span>
+                )}
+              </>
+            );
+            return (
+              <li key={e.seq ?? `${e.tick}-${e.message}`}>
+                {focusable ? (
+                  <button type="button" onClick={() => onFocus(e.x!, e.y!)}>
+                    {body}
+                  </button>
+                ) : (
+                  <div className="ev-static">{body}</div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+export function CivPanel() {
+  const towns = useWorldMirror((s) => s.towns);
+  const population = useWorldMirror((s) => s.population);
+  return (
+    <section className="panel" aria-labelledby="civ-title">
+      <h2 id="civ-title">{t('panel.civ')}</h2>
+      <dl className="kv">
+        <dt>{t('civ.count')}</dt>
+        <dd>{towns.reduce((a, b) => a + b, 0)}</dd>
+        <dt>{t('civ.pop')}</dt>
+        <dd>{Math.round(population).toLocaleString('ja-JP')}</dd>
+        <dt>{t('civ.tiers')}</dt>
+        <dd>{towns.join(' / ')}</dd>
+      </dl>
     </section>
   );
 }

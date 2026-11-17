@@ -1,6 +1,9 @@
 import { create } from 'zustand';
+import type { WorldEvent } from '../core/world';
 
-export type LayerId = 'terrain' | 'precip' | 'temperature' | 'moisture' | 'biome' | 'vegetation' | 'erosion';
+export type ToolId = 'view' | 'mountain' | 'dig' | 'afforest' | 'deforest' | 'dam' | 'fill';
+
+export type LayerId = 'terrain' | 'precip' | 'temperature' | 'moisture' | 'biome' | 'vegetation' | 'flood' | 'erosion';
 
 /** UI 状態のみ。World の配列は入れない（計画書 §3, §13.1）。 */
 interface UiState {
@@ -10,6 +13,16 @@ interface UiState {
   setRainfallScale: (v: number) => void;
   layer: LayerId;
   setLayer: (layer: LayerId) => void;
+  tool: ToolId;
+  setTool: (tool: ToolId) => void;
+  brushRadius: number;
+  setBrushRadius: (v: number) => void;
+  damCrest: number;
+  setDamCrest: (v: number) => void;
+  /** イベントログ（Worker のログの写し。seq 順）。undo で巻き戻るので eventsFrom 以降を差し替える */
+  events: WorldEvent[];
+  mergeEvents: (from: number, add: WorldEvent[]) => void;
+  clearEvents: () => void;
   playing: boolean;
   speed: number;
   workerStatus: 'connecting' | 'ready' | 'error';
@@ -26,6 +39,19 @@ export const useUiStore = create<UiState>()((set) => ({
   setRainfallScale: (rainfallScale) => set({ rainfallScale }),
   layer: 'biome',
   setLayer: (layer) => set({ layer }),
+  tool: 'view',
+  setTool: (tool) => set({ tool }),
+  brushRadius: 0.05,
+  setBrushRadius: (brushRadius) => set({ brushRadius }),
+  damCrest: 0.08,
+  setDamCrest: (damCrest) => set({ damCrest }),
+  events: [],
+  mergeEvents: (from, add) =>
+    set((st) => {
+      const kept = st.events.filter((e) => (e.seq ?? 0) < from);
+      return { events: [...kept, ...add].slice(-400) };
+    }),
+  clearEvents: () => set({ events: [] }),
   playing: false,
   speed: 1,
   workerStatus: 'connecting',
@@ -43,7 +69,16 @@ interface WorldMirrorState {
   degraded: boolean;
   vegetation: number;
   biomeShare: number[];
-  update: (m: Pick<WorldMirrorState, 'tick' | 'avgTickMs' | 'degraded' | 'vegetation' | 'biomeShare'>) => void;
+  undoDepth: number;
+  redoDepth: number;
+  towns: number[]; // 村・町・都市・港町の数
+  population: number;
+  update: (
+    m: Pick<
+      WorldMirrorState,
+      'tick' | 'avgTickMs' | 'degraded' | 'vegetation' | 'biomeShare' | 'undoDepth' | 'redoDepth' | 'towns' | 'population'
+    >,
+  ) => void;
 }
 
 export const useWorldMirror = create<WorldMirrorState>()((set) => ({
@@ -52,5 +87,9 @@ export const useWorldMirror = create<WorldMirrorState>()((set) => ({
   degraded: false,
   vegetation: 0,
   biomeShare: [],
+  undoDepth: 0,
+  redoDepth: 0,
+  towns: [0, 0, 0, 0],
+  population: 0,
   update: (m) => set(m),
 }));

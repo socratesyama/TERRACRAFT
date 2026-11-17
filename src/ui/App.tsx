@@ -3,9 +3,9 @@ import type { DataBundle } from '../core/data/schema';
 import { SimulationClient, type Snapshot } from '../worker/client';
 import { t } from './i18n';
 import { PauseIcon, PlayIcon } from './Icon';
-import { BiomePanel, DevPanel, LayerPanel, ScenarioPanel, StatsPanel } from './panels';
+import { BiomePanel, CivPanel, DevPanel, EventLog, LayerPanel, ScenarioPanel, StatsPanel, ToolPanel } from './panels';
 import { useUiStore, useWorldMirror } from './store';
-import { Viewport } from './Viewport';
+import { Viewport, type ViewportHandle } from './Viewport';
 
 export function App({ data }: { data: DataBundle }) {
   const clientRef = useRef<SimulationClient | null>(null);
@@ -14,6 +14,8 @@ export function App({ data }: { data: DataBundle }) {
     applyRef.current = fn;
   }, []);
   const scenarioId = useUiStore((s) => s.scenarioId);
+  const handleRef = useRef<ViewportHandle | null>(null);
+  const getClient = useCallback(() => clientRef.current, []);
   const { playing, speed, workerStatus, errorMessage, setPlaying, setSpeed, setWorkerStatus } =
     useUiStore();
   const degraded = useWorldMirror((s) => s.degraded);
@@ -30,18 +32,27 @@ export function App({ data }: { data: DataBundle }) {
     let lastMirrorAt = 0;
 
     client.onReady = () => setWorkerStatus('ready');
+    client.onDryRun = (mask) => handleRef.current?.setPreview(mask);
     client.onError = (message) => setWorkerStatus('error', message);
     client.onSnapshot = (s) => {
       // 統計は約 statsHz に間引く。描画に使い終えたバッファは必ず返却する。
       const now = performance.now();
       if (now - lastMirrorAt >= statsIntervalMs) {
         lastMirrorAt = now;
-        useWorldMirror.getState().update(s.stats);
+        const towns = [0, 0, 0, 0];
+        let population = 0;
+        for (const c of s.settlements) {
+          towns[c.tier]!++;
+          population += c.pop;
+        }
+        useWorldMirror.getState().update({ ...s.stats, towns, population });
       }
+      useUiStore.getState().mergeEvents(s.eventsFrom, s.events);
       applyRef.current?.(s); // GPU へコピーしてから返却する
       client.release(s);
     };
     setWorkerStatus('connecting');
+    useUiStore.getState().clearEvents();
     client.send({ type: 'init', scenarioId, seed, size: gridSize });
 
     return () => {
@@ -49,6 +60,28 @@ export function App({ data }: { data: DataBundle }) {
       clientRef.current = null;
     };
   }, [data, seed, gridSize, scenarioId, setWorkerStatus]);
+
+  const undo = useCallback(() => clientRef.current?.send({ type: 'undo' }), []);
+  const redo = useCallback(() => clientRef.current?.send({ type: 'redo' }), []);
+
+  // キーボード: Ctrl/Cmd+Z で元に戻す、Ctrl/Cmd+Shift+Z / Ctrl+Y でやり直す
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if ((k === 'z' && e.shiftKey) || k === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
 
   const togglePlay = () => {
     const next = !playing;
@@ -79,11 +112,23 @@ export function App({ data }: { data: DataBundle }) {
           heightScale={data.runtime.render.heightScale}
           precipMaxMm={data.runtime.render.precipLayerMaxMm}
           register={register}
+          client={getClient}
+          handleRef={handleRef}
           devicePixelRatioMax={data.runtime.render.devicePixelRatioMax}
           devicePixelRatioMaxMobile={data.runtime.render.devicePixelRatioMaxMobile}
         />
         <aside className="side">
           <ScenarioPanel data={data} />
+          <ToolPanel
+            data={data}
+            onUndo={undo}
+            onRedo={redo}
+            onRain={() =>
+              clientRef.current?.send({ type: 'op', op: { t: 'rain', tick: 0, amount: data.runtime.ui.tools.rainAmount.value } })
+            }
+          />
+          <EventLog onFocus={(x, y) => handleRef.current?.focusOn(x, y)} />
+          <CivPanel />
           <StatsPanel data={data} seed={seed} size={gridSize} />
           <LayerPanel data={data} />
           <BiomePanel data={data} />

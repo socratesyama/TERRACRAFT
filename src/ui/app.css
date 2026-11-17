@@ -326,3 +326,83 @@ button.primary:hover:not(:disabled) {
 .kv-row {
   display: contents;
 }
+
+/* ---- M3: ツール・イベントログ ---- */
+.choices.wrap {
+  flex-wrap: wrap;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.action {
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  background: var(--surface-3);
+  color: var(--ink);
+  border: 0;
+  border-radius: var(--radius);
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--ease);
+}
+.action:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.events {
+  display: grid;
+  gap: var(--space-1);
+  max-height: 260px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+.events button,
+.ev-static {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  color: var(--ink);
+  border: 0;
+  border-radius: var(--radius);
+  font: inherit;
+  text-align: left;
+}
+.events button {
+  cursor: pointer;
+  transition: background var(--ease);
+}
+.events button:hover {
+  background: var(--surface-3);
+}
+.ev-tick {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ev-kind {
+  padding: 0 var(--space-2);
+  background: var(--surface-3);
+  border-radius: 4px;
+}
+.kind-flood,
+.kind-landslide,
+.kind-drought,
+.kind-abandon {
+  color: var(--warn);
+}
+.ev-cause {
+  color: var(--accent);
+}

@@ -80,6 +80,26 @@
       "tropicalRainforest": "#14602f",
       "bare": "#8a7a63",
       "_doc": "バイオームレイヤーの表示色。bare は植生が無い地面（実際の植生密度が低いほどこの色に寄る）"
+    },
+    "civColors": {
+      "farm": "#c9b458",
+      "road": "#5a4a38",
+      "village": "#f2e3b3",
+      "town": "#f5c26b",
+      "city": "#f08a5d",
+      "port": "#7fd1e8",
+      "floodRisk": "#3a63c9",
+      "preview": "#7fd1e8",
+      "_doc": "集落・農地・道路・洪水リスク・ダム予測の表示色"
+    },
+    "settlementHeights": {
+      "value": [
+        1.2,
+        2,
+        3.2,
+        2.4
+      ],
+      "_doc": "集落マーカーの高さ（セル単位）。村・町・都市・港町の順"
     }
   },
   "ui": {
@@ -90,6 +110,36 @@
       "max": 2,
       "step": 0.1,
       "_doc": "開発者向けパネルの降水倍率スライダ（§21 の方針で『乾燥』は通常ツールにしない）"
+    },
+    "tools": {
+      "brushRadius": {
+        "min": 0.02,
+        "default": 0.05,
+        "max": 0.15,
+        "_doc": "ブラシの半径（世界の一辺に対する割合）"
+      },
+      "raiseAmount": {
+        "value": 0.04,
+        "_doc": "盛り土・山削りの中心での標高変化（正規化標高。0.04 = 120 m）"
+      },
+      "forestAmount": {
+        "value": 0.5,
+        "_doc": "植林・伐採で 1 回に変える植生密度"
+      },
+      "damCrest": {
+        "min": 0.02,
+        "default": 0.08,
+        "max": 0.3,
+        "_doc": "ダムの高さ（川床からの正規化標高）"
+      },
+      "strokeSpacingCells": {
+        "value": 2,
+        "_doc": "ドラッグ中に点を取る間隔（セル）。1 回のドラッグ = 1 つの Op"
+      },
+      "rainAmount": {
+        "value": 2,
+        "_doc": "「豪雨」ボタンの倍率（disasters.flood.surgeMax 以内）"
+      }
     }
   },
   "sources": [
