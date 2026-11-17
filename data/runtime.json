@@ -140,6 +140,10 @@
         "value": 2,
         "_doc": "「豪雨」ボタンの倍率（disasters.flood.surgeMax 以内）"
       }
+    },
+    "nationModeDefault": {
+      "value": true,
+      "_doc": "新しい世界を作るとき、国家モード（国・外交・貿易・戦争）を既定でオンにする"
     }
   },
   "sources": [

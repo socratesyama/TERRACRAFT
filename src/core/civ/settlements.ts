@@ -148,7 +148,8 @@ function tierFor(w: World, data: DataBundle, s: Settlement): 0 | 1 | 2 | 3 {
 }
 
 /** 集落を 1 つ建てる。候補は居住適性で重み付けしたPRNGで選ぶ。建てたら返す。 */
-export function pickSite(w: World, data: DataBundle, rng: Rng, suit: Float32Array, exclude?: Settlement): number {
+export function pickSite(w: World, data: DataBundle, rng: Rng, suit: Float32Array, exclude?: Settlement, nation?: number): number {
+  const nationMode = w.nations.length > 0;
   const sp = data.settlements.spawn;
   const n = w.size;
   const cand: number[] = [];
@@ -156,6 +157,10 @@ export function pickSite(w: World, data: DataBundle, rng: Rng, suit: Float32Arra
   let total = 0;
   for (let i = 0; i < n * n; i++) {
     if (suit[i]! < sp.threshold) continue;
+    if (nationMode) {
+      const ow = w.primary.owner[i]!;
+      if (ow === 0 || (nation !== undefined && ow !== nation)) continue;
+    }
     const x = i % n;
     const y = (i / n) | 0;
     let ok = true;
@@ -191,6 +196,8 @@ export function found(w: World, data: DataBundle, cell: number, pop: number, not
     foodBalance: 0,
     overCapTicks: 0,
     droughtTicks: 0,
+    nationId: w.primary.owner[cell]!,
+    kc: 0,
   };
   w.settlements.push(s);
   // 道路で結ぶ相手: 最も近い既存の集落（最近傍グラフの辺。全体では最小全域木に近い木になる）
@@ -216,8 +223,10 @@ export function spawnStep(w: World, data: DataBundle, rng: Rng): void {
   if (w.settlements.length >= sp.maxSettlements.value) return;
   const suit = new Float32Array(w.size * w.size);
   computeSuitability(w, data, suit);
+  // 国家モード: 発生の機会を国ごとに順番に与える（運で国の成長が決まらないように）
+  const turn = w.nations.length > 0 ? ((w.tick / sp.intervalTicks) | 0) % w.nations.length + 1 : undefined;
   for (let t = 0; t < sp.maxTries.value; t++) {
-    const cell = pickSite(w, data, rng, suit);
+    const cell = pickSite(w, data, rng, suit, undefined, turn);
     if (cell < 0) return;
     const probe: Settlement = {
       id: Number.MAX_SAFE_INTEGER,
@@ -229,6 +238,8 @@ export function spawnStep(w: World, data: DataBundle, rng: Rng): void {
       foodBalance: 0,
       overCapTicks: 0,
       droughtTicks: 0,
+      nationId: 0,
+      kc: 0,
     };
     w.settlements.push(probe);
     const kc = computeCatchments(w, data).get(probe.id)?.kc ?? 0;
@@ -241,7 +252,9 @@ export function spawnStep(w: World, data: DataBundle, rng: Rng): void {
 }
 
 /** 成長・階層・移動（§8.3）。 */
-export function growthStep(w: World, data: DataBundle, rng: Rng, cat: Map<number, Catchment>): void {
+export type KcMod = (s: Settlement, kc: number) => number;
+
+export function growthStep(w: World, data: DataBundle, rng: Rng, cat: Map<number, Catchment>, kcMod?: KcMod): void {
   const g = data.settlements.growth;
   const dis = data.disasters.drought;
   const n = w.size;
@@ -266,7 +279,9 @@ export function growthStep(w: World, data: DataBundle, rng: Rng, cat: Map<number
     }
     const kcRaw = cat.get(s.id)?.kc ?? 0;
     const penalty = Math.min(0.9, dis.foodPenaltyPerTick * s.droughtTicks);
-    const kc = Math.max(1, kcRaw * (1 - penalty));
+    let kc = Math.max(1, kcRaw * (1 - penalty));
+    s.kc = kc; // 農地の産出（国の食料生産の元）
+    if (kcMod) kc = Math.max(1, kcMod(s, kc));
     s.foodBalance = kc - s.pop;
     s.pop = Math.max(0, s.pop + g.logisticR * s.pop * (1 - s.pop / kc));
     s.overCapTicks = s.pop > kc ? s.overCapTicks + 1 : 0;
@@ -294,7 +309,7 @@ export function growthStep(w: World, data: DataBundle, rng: Rng, cat: Map<number
   for (const s of relocate) {
     if (!w.settlements.includes(s)) continue;
     const flood = w.derived.floodRisk[s.y * n + s.x]! > g.migration.floodRiskTrigger;
-    const cell = pickSite(w, data, rng, suit, s);
+    const cell = pickSite(w, data, rng, suit, s, s.nationId || undefined);
     if (cell < 0) continue;
     if (flood) {
       // 集落ごと移る

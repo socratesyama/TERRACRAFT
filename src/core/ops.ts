@@ -1,4 +1,5 @@
 import type { DataBundle } from './data/schema';
+import { applyDiploOp, type DiploOp } from './nations/diplomacy';
 import { Dirty, type World, type WorldParams } from './world';
 
 /**
@@ -22,7 +23,8 @@ export type Op =
   | { t: 'dam'; tick: number; a: Vec2; b: Vec2; crest: number }
   | { t: 'fill'; tick: number; pts: number[]; r: number }
   | { t: 'param'; tick: number; key: ParamKey; value: number }
-  | { t: 'rain'; tick: number; amount: number };
+  | { t: 'rain'; tick: number; amount: number }
+  | DiploOp;
 
 export interface OpResult {
   /** 立てる dirty フラグ */
@@ -189,6 +191,9 @@ export function applyOp(w: World, data: DataBundle, op: Op): OpResult {
         case 'windDir':
           w.params.windDir = ((Math.round(op.value) % 8) + 8) % 8;
           return { dirty: Dirty.Climate, message: '風向を変えた' };
+        case 'peaceMode':
+          w.params.peaceMode = op.value >= 0.5 ? 1 : 0;
+          return { dirty: 0, message: w.params.peaceMode ? '平和モードにした（戦争は起きない）' : '平和モードをやめた' };
         case 'seaLevel':
           w.params.seaLevel = Math.min(0.5, Math.max(0, op.value));
           return { dirty: Dirty.Height | Dirty.Climate | Dirty.Water, message: `海面を ${w.params.seaLevel.toFixed(2)} にした` };
@@ -197,7 +202,11 @@ export function applyOp(w: World, data: DataBundle, op: Op): OpResult {
       }
     }
     case 'rain':
+      w.civ.stormTick = w.tick;
       return { dirty: 0, message: `豪雨（倍率 ${op.amount.toFixed(1)}）`, surge: op.amount };
+    case 'diplo':
+    case 'military':
+      return { dirty: 0, message: applyDiploOp(w, data, op) };
     case 'contour':
       throw new RangeError('ゲーム中の等高線の追加は未対応です（地形はゲーム開始前に描く §21.1）');
   }

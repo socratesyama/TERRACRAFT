@@ -1,3 +1,7 @@
+import { aiStep, diploStep } from './nations/diplomacy';
+import { econStep, initEconomy, nationsKcMod, tradeStep } from './nations/economy';
+import { setupNations } from './nations/territory';
+import { armyStep, warStep } from './nations/war';
 import { computeHand } from './civ/hand';
 import { landslideStep, stormStep } from './civ/disasters';
 import { resetRoads, roadStep } from './civ/roads';
@@ -190,8 +194,15 @@ export function stepWorld(w: World, data: DataBundle, degraded: boolean): void {
   stormStep(w, data, rng(1));
   landslideStep(w, data, rng(2));
   spawnStep(w, data, rng(3));
-  growthStep(w, data, rng(4), computeCatchments(w, data));
+  growthStep(w, data, rng(4), computeCatchments(w, data), nationsKcMod(w, data));
   roadStep(w, data);
+  // 国家モード: 経済 → 貿易 → 外交 → AI → 軍 → 戦争（§10.1）
+  econStep(w, data);
+  tradeStep(w, data);
+  diploStep(w, data);
+  aiStep(w, data);
+  armyStep(w, data);
+  warStep(w, data);
   rasterizeCiv(w, data, computeCatchments(w, data));
   if (w.tick % 4 === 0) detect(w, data);
 }
@@ -202,6 +213,7 @@ export function buildWorld(
   scenarioId: string,
   seed: number,
   size?: number,
+  opts: { nations?: boolean } = {},
 ): World {
   const scenario = resolveScenario(data, scenarioId);
   const w = allocWorld(data, { seed, size });
@@ -212,5 +224,6 @@ export function buildWorld(
   recomputeFlow(w, data); // 植生ぶんの浸透を反映
   recomputeClimate(w, data);
   detect(w, data); // 基準値を取る
+  if (opts.nations && setupNations(w, data)) initEconomy(w, data);
   return w;
 }

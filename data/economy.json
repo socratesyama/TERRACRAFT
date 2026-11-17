@@ -18,7 +18,10 @@
     "farmlandYield": {
       "value": 700,
       "unit": "kg/ha/年",
-      "range": [400, 1500],
+      "range": [
+        400,
+        1500
+      ],
       "_doc": "前工業化時代の穀物収量（種子比 1:3〜1:8）。灌漑・品種・技術で向上する"
     },
     "farmRadiusFactor": 2,
@@ -64,6 +67,29 @@
       "wood": "森林×成長量",
       "ore": "山岳セル×鉱脈係数",
       "wealth": "都市・交易から"
+    },
+    "basePrice": {
+      "food": 1.0,
+      "wood": 1.2,
+      "ore": 2.0,
+      "wealth": 1.0,
+      "_doc": "基準価格（富で数える）"
+    },
+    "priceClamp": {
+      "min": 0.5,
+      "max": 2.5
+    },
+    "unitTransportPerCell": {
+      "value": 0.004,
+      "_doc": "陸運（road = 1.0）の 1 セルあたり輸送コスト（基準価格に対する比）。川・海は transportCost の倍率を掛ける"
+    },
+    "lossFractionMax": {
+      "value": 0.3,
+      "_doc": "輸送で失われる量の上限（輸送コスト / 価格）"
+    },
+    "minFlow": {
+      "value": 0.5,
+      "_doc": "これ未満の取引は行わない"
     }
   },
   "population": {
@@ -87,7 +113,19 @@
     "environment": 15,
     "disasterResilience": 10,
     "technology": 10,
-    "diplomacy": 5
+    "diplomacy": 5,
+    "baselines": {
+      "_doc": "DI の基準値（固定値。他国の成績で動かさない §21.6）。M4 で追加",
+      "popPerPotential": 3,
+      "wealthPerPop": 0.5,
+      "roadShare": 0.05,
+      "forestShare": 0.4,
+      "vegetation": 0.5,
+      "disasterLossHalfLife": 10,
+      "tradeShare": 0.2
+    },
+    "historyEveryTicks": 8,
+    "historyMax": 120
   },
   "sources": [
     "Glaeser, E. & Kohlhase, J. (2004) Cities, regions and the decline of transport costs — Papers in Regional Science",
@@ -95,5 +133,29 @@
     "Boserup, E. (1965) The Conditions of Agricultural Growth",
     "Malthus, T. (1798) An Essay on the Principle of Population",
     "Engel, E. (1857) Die Productions- und Consumtionsverhältnisse des Königreichs Sachsen"
-  ]
+  ],
+  "production": {
+    "_doc": "資源の生産・消費（M4 で追加。値は計画書に無く出発点）。食料は『人・年』（1 = 1 人を 1 年養う量）で数える。農地 1 セルの産出は settlements.growth.carryCapFoodPerCell × 肥沃度",
+    "woodPerForestCell": 0.0035,
+    "forestBiomePattern": "orest$|^boreal$",
+    "orePerMountainCell": 0.0006,
+    "wealthPerPop": 0.02,
+    "wealthTierBonus": [
+      0,
+      0.5,
+      1.0,
+      1.5
+    ],
+    "woodPerPop": 0.02,
+    "orePerPop": 0.004,
+    "techPerTierPerYear": 0.01,
+    "reserveYears": 2,
+    "reserveDoc": "需要の算定: 備蓄が消費の reserveYears 年分に満たない分が不足、それを超える分が余剰",
+    "techYieldBonus": 0.3,
+    "techYieldBonusDoc": "技術 1.0 で食料の産出が 30% 増える",
+    "oreHeightQuantile": 0.85,
+    "oreHeightQuantileDoc": "鉱脈は、陸の標高の上位 15%（山）にある。標高の絶対値ではなく分位で決めるので、地形の高さの尺度に依存しない",
+    "harvestSurplusMargin": 0.25,
+    "harvestSurplusMarginDoc": "農地の実際の収穫は、人口 × (1 + この値) まで（農地は必要な分だけ耕す）。余りは備蓄になり、貿易の輸出元になる"
+  }
 }

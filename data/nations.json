@@ -1,1 +1,173 @@
-{"_doc": "国家モデルの定数。神アルゴリズム（Nature Director）とAI国家（Utility AI）のパラメータ。", "setup": {"nationCount": 4, "nationCountDoc": "プレイヤー1 + AI 3。0は無主地"}, "capital": {"minDistance": 24, "unit": "セル", "_doc": "首都間の最小距離"}, "potentialBalance": {"tolerance": 0.15, "_doc": "初期ポテンシャル（領土内の居住適性合計）の差が15%以内になるまで首都を選び直す。比較の前提の公平性"}, "territory": {"costSlope": 8, "costRiverCrossing": 6, "costVegetation": 1.5, "doc": "国境のDijkstraコスト: 1 + costSlope×傾斜² + costRiver×川 + costVegetation×植生。国境は川や稜線に沿って引かれる"}, "personality": {"_doc": "AI国家の性格（Utility AI の重み）。seed から決める", "archetypes": {"expansionist": {"expansion": 1.5, "conservation": 0.5, "commerce": 0.8, "caution": 0.4}, "conservationist": {"expansion": 0.4, "conservation": 1.5, "commerce": 0.8, "caution": 0.8}, "mercantile": {"expansion": 0.6, "conservation": 0.6, "commerce": 1.6, "caution": 0.6}, "cautious": {"expansion": 0.4, "conservation": 0.8, "commerce": 0.6, "caution": 1.5}}}, "natureDirector": {"_doc": "神アルゴリズム。雨・気温・風・災害は seed と tick から決定論的に決める", "seasonalPeriod": 4, "unit": "tick（年）", "decadalNoiseOctaves": 3, "decadalDoc": "数年〜数十年の変動（豊水期・渇水期、冷夏・暖夏）は1次元滑らかなノイズ", "longTermTrend": 0.15, "longTermDoc": "seed ごとに「やや乾燥化」などの長期傾向を持つ", "forecast": {"horizon": 8, "unit": "年", "accuracy": 0.6, "_doc": "予報は数年先まで、精度に限りがある。AIも同じ精度を使う（チートなし）"}}, "disasters": {"_doc": "災害の基準発生率（/年）。確率は世界の状態（植生・乾燥・勾配）で変動する。人間の行いが災害の確率を変える", "flood": 0.02, "drought": 0.03, "wildfire": 0.02, "wildfireDoc": "乾燥した森では火災確率が上がる", "landslide": 0.01, "landslideDoc": "植生の乏しい急斜面で土砂災害確率が上がる"}, "ai": {"decisionBudget": {"ms": 2, "perTick": 1, "_doc": "1 tick に1国ずつ順番に判断。候補は集落周辺からサンプリングした上位K個"}}, "developmentIndex": {"formula": "DI = Σ(重み × clamp01(実績/基準値))", "capPenalty": {"forestFloor": 0.25, "_doc": "森林率がこの線を下回るとDIに上限がかかる（持続可能性のペナルティ）"}}, "sources": ["計画書 §21〜22（国家モード・外交・貿易・戦争）"]}
+{
+  "_doc": "国家モデルの定数。神アルゴリズム（Nature Director）とAI国家（Utility AI）のパラメータ。",
+  "setup": {
+    "nationCount": 4,
+    "nationCountDoc": "プレイヤー1 + AI 3。0は無主地",
+    "playerNationId": 1,
+    "names": [
+      "あなたの国",
+      "アルド国",
+      "ベル国",
+      "カイ国"
+    ],
+    "colors": [
+      "#46c2b3",
+      "#e6b450",
+      "#c27bd6",
+      "#e07a6b"
+    ],
+    "capitalPop": 60,
+    "capitalSelection": {
+      "tries": 120,
+      "_doc": "首都の選び直しの最大回数。差が potentialBalance.tolerance 以内の組が出れば打ち切り、出なければ差が最小の組を使う"
+    },
+    "_m4doc": "M4 で追加した国家の初期設定（名前・色・首都の初期人口・首都選びの試行回数）。計画書 §21.3"
+  },
+  "capital": {
+    "minDistance": 24,
+    "unit": "セル",
+    "_doc": "首都間の最小距離"
+  },
+  "potentialBalance": {
+    "tolerance": 0.15,
+    "_doc": "初期ポテンシャル（領土内の居住適性合計）の差が15%以内になるまで首都を選び直す。比較の前提の公平性",
+    "farmWeight": {
+      "value": 0.7,
+      "_doc": "M4 での拡張（計画書は居住適性の合計）。農地にできるセル（農地バイオームで水分が足りる）は居住適性を 1 倍、そうでないセルは (1 − farmWeight) 倍で数える。食料が国の成長を決めるので、居住適性だけだと『適地に見えて作物が育たない』国が不利になりすぎる"
+    }
+  },
+  "territory": {
+    "costSlope": 8,
+    "costRiverCrossing": 6,
+    "costVegetation": 1.5,
+    "doc": "国境のDijkstraコスト: 1 + costSlope×傾斜² + costRiver×川 + costVegetation×植生。国境は川や稜線に沿って引かれる"
+  },
+  "personality": {
+    "_doc": "AI国家の性格（Utility AI の重み）。seed から決める",
+    "archetypes": {
+      "expansionist": {
+        "expansion": 1.5,
+        "conservation": 0.5,
+        "commerce": 0.8,
+        "caution": 0.4
+      },
+      "conservationist": {
+        "expansion": 0.4,
+        "conservation": 1.5,
+        "commerce": 0.8,
+        "caution": 0.8
+      },
+      "mercantile": {
+        "expansion": 0.6,
+        "conservation": 0.6,
+        "commerce": 1.6,
+        "caution": 0.6
+      },
+      "cautious": {
+        "expansion": 0.4,
+        "conservation": 0.8,
+        "commerce": 0.6,
+        "caution": 1.5
+      }
+    }
+  },
+  "natureDirector": {
+    "_doc": "神アルゴリズム。雨・気温・風・災害は seed と tick から決定論的に決める",
+    "seasonalPeriod": 4,
+    "unit": "tick（年）",
+    "decadalNoiseOctaves": 3,
+    "decadalDoc": "数年〜数十年の変動（豊水期・渇水期、冷夏・暖夏）は1次元滑らかなノイズ",
+    "longTermTrend": 0.15,
+    "longTermDoc": "seed ごとに「やや乾燥化」などの長期傾向を持つ",
+    "forecast": {
+      "horizon": 8,
+      "unit": "年",
+      "accuracy": 0.6,
+      "_doc": "予報は数年先まで、精度に限りがある。AIも同じ精度を使う（チートなし）"
+    }
+  },
+  "disasters": {
+    "_doc": "災害の基準発生率（/年）。確率は世界の状態（植生・乾燥・勾配）で変動する。人間の行いが災害の確率を変える",
+    "flood": 0.02,
+    "drought": 0.03,
+    "wildfire": 0.02,
+    "wildfireDoc": "乾燥した森では火災確率が上がる",
+    "landslide": 0.01,
+    "landslideDoc": "植生の乏しい急斜面で土砂災害確率が上がる"
+  },
+  "ai": {
+    "decisionBudget": {
+      "ms": 2,
+      "perTick": 1,
+      "_doc": "1 tick に1国ずつ順番に判断。候補は集落周辺からサンプリングした上位K個"
+    },
+    "personalityByRank": [
+      "expansionist",
+      "conservationist",
+      "mercantile",
+      "cautious"
+    ],
+    "personalityDoc": "AI 国家へ seed で振り分ける性格（archetypes のキー）。人数がこれより多いときは巡回"
+  },
+  "developmentIndex": {
+    "formula": "DI = Σ(重み × clamp01(実績/基準値))",
+    "capPenalty": {
+      "forestFloor": 0.25,
+      "_doc": "森林率がこの線を下回るとDIに上限がかかる（持続可能性のペナルティ）",
+      "cap": {
+        "value": 70,
+        "_doc": "森林率が forestFloor を下回ったときの DI の上限（0〜100）"
+      }
+    }
+  },
+  "sources": [
+    "計画書 §21〜22（国家モード・外交・貿易・戦争）"
+  ],
+  "diplomacy": {
+    "_doc": "外交の定数（計画書 §22.2、M4 で追加。値は計画書に無く出発点）",
+    "trust": {
+      "min": -100,
+      "max": 100,
+      "initial": 10,
+      "tradeGainPerYear": 1.0,
+      "borderFrictionPerYear": 0.4,
+      "waterShortfallPerYear": 1.0,
+      "giftGain": 10,
+      "warDrop": -40,
+      "decayToNeutral": 0.02,
+      "_doc": "信頼値の増減（/年）。貿易の継続で増え、国境の摩擦と上流の取水で減る"
+    },
+    "water": {
+      "emaRate": 0.05,
+      "shortfallRatio": 0.8,
+      "_doc": "下流国への流入量の長期平均（EMA）に対し、現在が shortfallRatio を下回ると『上流の取水』として信頼値が下がる"
+    },
+    "pacts": {
+      "tradeYears": 20,
+      "nonaggressionYears": 30,
+      "proposalTtl": 6,
+      "_doc": "協定の期間（年）と、提案が応答を待つ年数",
+      "refuseCooldownTicks": 20
+    },
+    "borderMinCells": 3,
+    "borderMinCellsDoc": "国境のセル対がこれ以上で『隣接』とみなす",
+    "ai": {
+      "tensionTrust": -10,
+      "warWarningTicks": 6,
+      "warCooldownTicks": 12,
+      "warScoreThreshold": 1.0,
+      "acceptTrust": -10,
+      "gainFood": 1.0,
+      "gainWater": 0.8,
+      "warCost": 0.6,
+      "_doc": "AI の判断。trust が tensionTrust 未満で緊張（前触れ）に入り、warWarningTicks 続いて、期待利得 − コストが warScoreThreshold を超えると宣戦する。突然の宣戦はしない（§22.5）",
+      "tensionRecoverTrust": 5,
+      "nonAggressionAcceptBias": 20,
+      "biasDoc": "AI の受諾判定: 信頼値 + bias × (性格の重み − 1) が acceptTrust 以上なら受ける（商人は貿易協定を受けやすく、慎重は不可侵を受けやすい）",
+      "oneWarAtATime": {
+        "value": true,
+        "_doc": "AI は、すでに戦争中の国へは宣戦せず、自分も戦争中は新たに宣戦しない（袋叩きの防止。プレイヤーが理不尽に潰されないように）"
+      }
+    }
+  }
+}

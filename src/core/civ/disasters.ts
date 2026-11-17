@@ -37,6 +37,8 @@ export function flood(w: World, data: DataBundle, surge: number, why: string): v
     if (depth <= 0) continue;
     const loss = s.pop * w.derived.floodRisk[i]! * f.populationLossRate;
     s.pop = Math.max(0, s.pop - loss);
+    const nat = w.nations[s.nationId - 1];
+    if (nat) nat.lossAcc += loss;
     emit(w, data, 'flood', `洪水（${why}）: 浸水深 ${depth.toFixed(1)} m、人口 −${Math.round(loss)}`, s.x, s.y);
   }
 }
@@ -46,6 +48,7 @@ export function stormStep(w: World, data: DataBundle, rng: Rng): void {
   const f = data.disasters.flood;
   if (rng.next() >= f.stormTickProb.value) return;
   const surge = 1 + rng.next() * (f.surgeMax - 1);
+  w.civ.stormTick = w.tick;
   flood(w, data, surge, `豪雨 ×${surge.toFixed(1)}`);
 }
 
