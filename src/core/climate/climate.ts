@@ -265,7 +265,7 @@ export function computeBiome(w: World, data: DataBundle): void {
   }
 }
 
-/** 環境収容力 Kcap（§7.6） */
+/** 環境収容力 Kcap（§7.6 + 水分の門 capacity.moistureGate: 仕様変更） */
 export function capacityAt(w: World, data: DataBundle, i: number): number {
   const c = data.ecology.capacity;
   const tf = c.temperatureFit;
@@ -285,7 +285,9 @@ export function capacityAt(w: World, data: DataBundle, i: number): number {
   );
   const sp = c.slopePenalty;
   const pen = 1 - sp.max * Math.min(1, Math.max(0, (w.derived.slope[i]! - sp.threshold) / sp.threshold));
-  return base * pen;
+  const g = c.moistureGate;
+  const gate = g.floor + (1 - g.floor) * Math.min(1, w.derived.moisture[i]! / g.fullAt);
+  return base * pen * gate;
 }
 
 /** 植生の成長（§7.6）。隣接平均は旧い値から読む（走査順に依存させない）。 */

@@ -50,15 +50,16 @@
   "precip": {
     "humidity0": 0.5,
     "evapGain": 0.08,
-    "baseRainFrac": 0.06,
+    "baseRainFrac": 0.015,
     "liftK": 2.2,
     "qMax": 1.0,
     "_doc": "地形性降雨のパラメータ。風上の縁から湿った空気を運び、上昇(lift)で凝結させ、風下側は乾く＝雨陰。rain = min(q, q × (baseRainFrac + lift))。liftK×上昇量 が凝結率を決める。実測では山脈の風上側で降水量が数倍になり、風下側の雨陰は山脈幅の数倍〜10倍程度続く（Roe 2005）",
-    "calibration": 25000,
-    "calibrationDoc": "生の湿度単位 → mm/年 の較正係数。風上斜面で約1500〜2500mm、大陸内部の雨陰で約50〜150mmになるよう調整（Roe 2005 の典型的な地形性降水量の比に対応）",
-    "qFloor": 0.08,
-    "qFloorDoc": "空気塊の最低湿度。大陸内部でもわずかに降水がある（実地球のステップ気候 200〜400mm 相当）",
-    "unit": "mm/year"
+    "calibration": 100000,
+    "calibrationDoc": "生の湿度単位 → mm/年 の較正係数。海上の降水は baseRainFrac × calibration ≒ 1500 mm/年。風上斜面は上昇分が加わって約 1000〜3500 mm/年、風下の雨陰は約 180〜400 mm/年（Roe 2005 の典型比）",
+    "qFloor": 0.12,
+    "qFloorDoc": "空気塊の最低湿度。大陸内部でもわずかに降水がある。下限の降水 = qFloor × baseRainFrac × calibration = 180 mm/年（砂漠の境 250 mm のすぐ下。実地球のステップ〜半砂漠 150〜300 mm に対応）",
+    "unit": "mm/year",
+    "gameplayRetuneDoc": "M2 で調整（ゲームとして面白くするための変更、ユーザー承認済み）: baseRainFrac 0.06→0.015 と calibration 25000→100000 で、海上の降水を保ったまま陸へ湿気が遠くまで届く（0.94^k → 0.985^k）ようにし、風上の山で降り、風下に雨陰の砂漠ができる。qFloor 0.08→0.12"
   },
   "moisture": {
     "precipWeight": 1.0,
