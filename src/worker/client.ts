@@ -1,5 +1,5 @@
-import type { FromWorker, RenderPack, Stats, ToWorker } from './protocol';
-import type { DiploState, Nation, Settlement, WorldEvent } from '../core/world';
+import type { CompareResult, FromWorker, RenderPack, Stats, ToWorker } from './protocol';
+import type { DiploState, Nation, ObsState, Settlement, WorldEvent } from '../core/world';
 
 export interface Snapshot {
   tick: number;
@@ -10,6 +10,7 @@ export interface Snapshot {
   settlements: Settlement[];
   nations: Nation[];
   diplo: Pick<DiploState, 'relations' | 'proposals' | 'wars' | 'lastTrade'>;
+  obs?: ObsState;
 }
 
 /**
@@ -23,6 +24,8 @@ export class SimulationClient {
   onError: (message: string) => void = () => {};
   onDryRun: (lakeMask: Uint8Array) => void = () => {};
   /** 失敗しても続けられる通知（外交の操作が今はできない、など） */
+  onCompare: (r: CompareResult) => void = () => {};
+  onProgress: (done: number, total: number) => void = () => {};
   onNotice: (message: string) => void = () => {};
 
   constructor() {
@@ -45,10 +48,17 @@ export class SimulationClient {
             settlements: m.settlements,
             nations: m.nations,
             diplo: m.diplo,
+            obs: m.obs,
           });
           break;
         case 'error':
           this.onError(m.message);
+          break;
+        case 'compareResult':
+          this.onCompare(m.result);
+          break;
+        case 'progress':
+          this.onProgress(m.done, m.total);
           break;
         case 'notice':
           this.onNotice(m.message);

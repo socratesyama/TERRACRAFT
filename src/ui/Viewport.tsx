@@ -35,6 +35,7 @@ const LAYER_INDEX = {
   erosion: 0,
   nation: 7,
   defense: 8,
+  diff: 9,
 } as const satisfies Record<LayerId, number>;
 
 export function Viewport({ register, data, client, handleRef, ...opts }: Props) {

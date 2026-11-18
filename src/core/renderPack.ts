@@ -7,7 +7,7 @@ import type { World } from './world';
  * 1枚目: R 標高 / G 水面 / B 川 / A 降水(mm/年)
  * 2枚目: R 気温(°C) / G 水分 / B 植生 / A バイオーム番号
  * 3枚目: R 土地利用(civ/settlements.ts LAND_USE) / G 人口 / B 道路 / A 洪水リスク
- * 4枚目: R 領有する国の ID（0 = 無主地） / G 戦争の前線なら 1 / B 防御の地形倍率（水域は 0） / A 予備
+ * 4枚目: R 領有する国の ID（0 = 無主地） / G 戦争の前線なら 1 / B 防御の地形倍率（水域は 0） / A 基準からの変化 0〜1（因果トレーサの変化マップ）
  */
 export const PACK_CHANNELS = 4;
 export const PACK_TEXTURES = 4;
@@ -22,7 +22,19 @@ export function packByteLength(size: number): number {
  * 水面の高さ（§5.4）: 海は海面、湖は充填後標高。川は水面ではなく B チャンネルの濃さで描く。
  * 川の濃さ = log(1 + acc/threshold) × widthFactor（hydrology.json river）。
  */
-export function buildRenderPack(w: World, data: DataBundle, out: Float32Array): void {
+/** 変化マップの基準（操作の直前や「今を基準にする」時点の標高・植生・領有） */
+export interface DiffBaseline {
+  height: Float32Array;
+  vegetation: Float32Array;
+  owner: Uint8Array;
+}
+
+export function takeBaseline(w: World): DiffBaseline {
+  return { height: w.primary.height.slice(), vegetation: w.primary.vegetation.slice(), owner: w.primary.owner.slice() };
+}
+
+export function buildRenderPack(w: World, data: DataBundle, out: Float32Array, base?: DiffBaseline): void {
+  const ds = data.runtime.observe.diffScale;
   const { height } = w.primary;
   const { filled, lakeDepth, flowAcc, precip } = w.derived;
   const n = height.length;
@@ -55,7 +67,14 @@ export function buildRenderPack(w: World, data: DataBundle, out: Float32Array): 
     out[third + o + 3] = w.derived.floodRisk[i];
     out[fourth + o] = w.primary.owner[i]!;
     out[fourth + o + 1] = 0;
-    out[fourth + o + 3] = 0;
+    out[fourth + o + 3] = base
+      ? Math.min(
+          1,
+          Math.abs(height[i]! - base.height[i]!) * ds.height +
+            Math.abs(w.primary.vegetation[i]! - base.vegetation[i]!) * ds.vegetation +
+            (w.primary.owner[i] !== base.owner[i] ? 1 : 0),
+        )
+      : 0;
   }
   if (w.nations.length > 0) {
     defenseGrid(w, data, out, PACK_CHANNELS, fourth + 2);

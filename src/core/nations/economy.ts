@@ -33,7 +33,7 @@ export function landQuantile(w: World, q: number): number {
 }
 
 /** 国ごとの森林・山岳セル数、道路セル数、平均植生（国の生産と DI の元） */
-function landSummary(w: World, data: DataBundle): { forest: number[]; ore: number[]; road: number[]; veg: number[]; cells: number[] } {
+export function landSummary(w: World, data: DataBundle): { forest: number[]; ore: number[]; road: number[]; veg: number[]; cells: number[] } {
   const K = w.nations.length;
   const p = data.economy.production;
   const re = new RegExp(p.forestBiomePattern);

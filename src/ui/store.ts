@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import type { DiploState, Nation, WorldEvent } from '../core/world';
+import type { CompareResult } from '../core/compare';
+import type { DiploState, Nation, ObsState, WorldEvent } from '../core/world';
 
 export type ToolId = 'view' | 'mountain' | 'dig' | 'afforest' | 'deforest' | 'dam' | 'fill';
 
-export type LayerId = 'terrain' | 'precip' | 'temperature' | 'moisture' | 'biome' | 'vegetation' | 'flood' | 'erosion' | 'nation' | 'defense';
+export type LayerId = 'terrain' | 'precip' | 'temperature' | 'moisture' | 'biome' | 'vegetation' | 'flood' | 'erosion' | 'nation' | 'defense' | 'diff';
 
 /** UI 状態のみ。World の配列は入れない（計画書 §3, §13.1）。 */
 interface UiState {
@@ -24,6 +25,14 @@ interface UiState {
   mergeEvents: (from: number, add: WorldEvent[]) => void;
   clearEvents: () => void;
   /** 国家モード（国・外交・貿易・戦争）。変えると世界を作り直す */
+  /** シナリオ比較の結果と進行 */
+  compare: CompareResult | null;
+  compareProgress: number | null;
+  setCompare: (r: CompareResult | null) => void;
+  setCompareProgress: (p: number | null) => void;
+  /** 因果トレーサで選んだ操作（op イベントの通し番号 seq） */
+  traceSeq: number | null;
+  setTraceSeq: (s: number | null) => void;
   nationMode: boolean;
   setNationMode: (v: boolean) => void;
   /** 平和モード（戦争が起きない） */
@@ -54,6 +63,12 @@ export const useUiStore = create<UiState>()((set) => ({
   setBrushRadius: (brushRadius) => set({ brushRadius }),
   damCrest: 0.08,
   setDamCrest: (damCrest) => set({ damCrest }),
+  compare: null,
+  compareProgress: null,
+  setCompare: (compare) => set({ compare, compareProgress: null }),
+  setCompareProgress: (compareProgress) => set({ compareProgress }),
+  traceSeq: null,
+  setTraceSeq: (traceSeq) => set({ traceSeq }),
   nationMode: true,
   setNationMode: (nationMode) => set({ nationMode, playing: false }),
   peaceMode: false,
@@ -89,12 +104,13 @@ interface WorldMirrorState {
   towns: number[]; // 村・町・都市・港町の数
   population: number;
   nations: Nation[];
+  obs: ObsState;
   diplo: Pick<DiploState, 'relations' | 'proposals' | 'wars' | 'lastTrade'>;
   update: (
     m: Pick<
       WorldMirrorState,
       'tick' | 'avgTickMs' | 'degraded' | 'vegetation' | 'biomeShare' | 'undoDepth' | 'redoDepth' | 'towns' | 'population' | 'nations' | 'diplo'
-    >,
+    > & { obs?: ObsState },
   ) => void;
 }
 
@@ -109,6 +125,8 @@ export const useWorldMirror = create<WorldMirrorState>()((set) => ({
   towns: [0, 0, 0, 0],
   population: 0,
   nations: [],
+  obs: { ticks: [], values: {} },
   diplo: { relations: [], proposals: [], wars: [], lastTrade: { tick: 0, flows: [], loss: 0 } },
-  update: (m) => set(m),
+  // obs は点が増えたときだけ届く。届かない間は前のものを残す
+  update: ({ obs, ...m }) => set(obs ? { ...m, obs } : m),
 }));

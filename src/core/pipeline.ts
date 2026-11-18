@@ -1,3 +1,4 @@
+import { stepObs } from './observe';
 import { aiStep, diploStep } from './nations/diplomacy';
 import { econStep, initEconomy, nationsKcMod, tradeStep } from './nations/economy';
 import { setupNations } from './nations/territory';
@@ -204,6 +205,7 @@ export function stepWorld(w: World, data: DataBundle, degraded: boolean): void {
   armyStep(w, data);
   warStep(w, data);
   rasterizeCiv(w, data, computeCatchments(w, data));
+  stepObs(w, data);
   if (w.tick % 4 === 0) detect(w, data);
 }
 

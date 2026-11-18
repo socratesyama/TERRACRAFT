@@ -6,7 +6,8 @@ import { restoreWorld, snapshotWorld, type WorldSnapshot } from '../core/history
 import { applyOp, type Op } from '../core/ops';
 import { buildWorld, refreshDirty, stepWorld } from '../core/pipeline';
 import { findOutlets, priorityFlood } from '../core/hydrology';
-import { buildRenderPack, packByteLength } from '../core/renderPack';
+import { runComparison } from '../core/compare';
+import { buildRenderPack, packByteLength, takeBaseline, type DiffBaseline } from '../core/renderPack';
 import type { World } from '../core/world';
 import { BufferPool } from './bufferPool';
 import type { Post, ToWorker } from './protocol';
@@ -25,6 +26,8 @@ export class SimulationController {
   /** Op を適用する直前のスナップショット（Undo 用リング §9.3） */
   private ring: { opIndex: number; snap: WorldSnapshot }[] = [];
   private redoStack: Op[] = [];
+  private baseline: DiffBaseline | null = null;
+  private lastSentObs = -1;
   private lastSentSeq = 0;
   private running = false;
   private speed = 1;
@@ -72,6 +75,8 @@ export class SimulationController {
         this.lastSentSeq = 0;
         for (const op of msg.ops ?? []) this.commitOp(this.world, op, false);
         refreshDirty(this.world, this.data);
+        this.baseline = takeBaseline(this.world);
+        this.lastSentObs = -1;
         const bytes = packByteLength(this.world.size);
         this.pool = new BufferPool(bytes, this.data.runtime.snapshot.poolSize);
         this.running = false;
@@ -103,6 +108,20 @@ export class SimulationController {
       case 'redo':
         this.redo();
         return;
+      case 'markBaseline':
+        this.baseline = takeBaseline(this.requireWorld());
+        this.maybeSnapshot(true);
+        return;
+      case 'compare': {
+        // 別の World を 2 つ作って進める。動いている世界には触れない
+        const seed = this.requireWorld().seed;
+        const size = this.requireWorld().size;
+        const result = runComparison(this.data, [msg.a, msg.b], seed, size, msg.ticks, (done, total) =>
+          this.post({ type: 'progress', done, total }, []),
+        );
+        this.post({ type: 'compareResult', result }, []);
+        return;
+      }
       case 'dryRunDam':
         this.dryRunDam(msg.a, msg.b, msg.crest);
         return;
@@ -162,6 +181,7 @@ export class SimulationController {
    */
   private commitOp(w: World, input: Op, refresh: boolean): void {
     const op: Op = { ...input, tick: w.tick };
+    if (refresh) this.baseline = takeBaseline(w); // 変化マップは、直近の操作の直前を基準にする
     const opIndex = this.opLog.length;
     this.ring.push({ opIndex, snap: snapshotWorld(w) });
     if (this.ring.length > this.data.runtime.history.snapshotRing) this.ring.shift();
@@ -176,6 +196,8 @@ export class SimulationController {
     }
     w.dirty |= res.dirty;
     emit(w, this.data, 'op', res.message, res.x, res.y);
+    const opEv = w.events[w.events.length - 1];
+    if (opEv && opEv.kind === 'op') opEv.opId = opIndex;
     w.civ.recentOps.push({ id: opIndex, tick: w.tick, x: res.x, y: res.y });
     if (w.civ.recentOps.length > 8) w.civ.recentOps.shift();
     if (res.surge !== undefined) flood(w, this.data, res.surge, `豪雨 ×${res.surge.toFixed(1)}`);
@@ -192,6 +214,8 @@ export class SimulationController {
     this.redoStack.push(this.opLog[last.opIndex]!);
     this.opLog.length = last.opIndex;
     restoreWorld(w, last.snap);
+    this.baseline = takeBaseline(w);
+    this.lastSentObs = -1;
     this.lastSentSeq = Math.min(this.lastSentSeq, w.civ.eventSeq);
     this.afterHistoryChange();
   }
@@ -259,9 +283,12 @@ export class SimulationController {
     if (!force && t - this.lastSnapshotAt < minInterval) return;
     const buf = pool.acquire();
     if (!buf) return; // 前のスナップショットが返却されていない
-    buildRenderPack(w, this.data, new Float32Array(buf));
+    buildRenderPack(w, this.data, new Float32Array(buf), this.baseline ?? undefined);
     this.lastSnapshotAt = t;
     const from = this.lastSentSeq;
+    const obsMark = w.obs.ticks[w.obs.ticks.length - 1] ?? -2;
+    const obsChanged = obsMark !== this.lastSentObs;
+    if (obsChanged) this.lastSentObs = obsMark;
     this.lastSentSeq = w.civ.eventSeq;
     const avg = this.avgTickMs();
     this.post(
@@ -278,6 +305,7 @@ export class SimulationController {
         eventsFrom: from,
         events: w.events.filter((e) => (e.seq ?? 0) >= from),
         settlements: w.settlements.map((c) => ({ ...c })),
+        obs: obsChanged ? structuredClone(w.obs) : undefined,
         nations: structuredClone(w.nations),
         diplo: structuredClone({ relations: w.diplo.relations, proposals: w.diplo.proposals, wars: w.diplo.wars, lastTrade: w.diplo.lastTrade }),
       },

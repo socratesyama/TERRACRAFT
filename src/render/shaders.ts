@@ -105,6 +105,9 @@ export const TERRAIN_FRAGMENT = /* glsl */ `
       base = moistRamp(clamp(e.g, 0.0, 1.0));
     } else if (uLayer == 6) {
       base = mix(vec3(0.82, 0.84, 0.80), uFlood, clamp(f.a, 0.0, 1.0));
+    } else if (uLayer == 9) {
+      // 変化マップ: 直近の操作の前（または「今を基準にする」）からの変化。標高・植生・領有の変化
+      base = mix(hypsometric(max(d.r, uSeaLevel)) * 0.55 + 0.08, vec3(1.0, 0.5, 0.1), clamp(g.a * 1.6, 0.0, 1.0));
     } else if (uLayer == 8) {
       // 防御の地形倍率（1 = 平野、大きいほど守りやすい）。水域は 0
       float m = clamp((g.b - 1.0) / 1.6, 0.0, 1.0);

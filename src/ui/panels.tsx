@@ -14,6 +14,7 @@ const LAYERS: readonly { id: LayerId; label: MessageKey }[] = [
   { id: 'flood', label: 'layer.flood' },
   { id: 'nation', label: 'layer.nation' },
   { id: 'defense', label: 'layer.defense' },
+  { id: 'diff', label: 'layer.diff' },
   { id: 'erosion', label: 'layer.erosion' },
 ];
 

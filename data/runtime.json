@@ -149,5 +149,28 @@
   },
   "sources": [
     "docs/implementation-plan.md §9.3, §9.4, §10, §11, §12, §15.2"
-  ]
+  ],
+  "observe": {
+    "_doc": "観測量の記録（M5）。指標の定義は observables.json。ここは記録の間隔と上限、シナリオ比較の長さだけ",
+    "everyTicks": {
+      "value": 4,
+      "_doc": "何 tick ごとに記録するか"
+    },
+    "maxSamples": {
+      "value": 300,
+      "_doc": "1 本の時系列に残す点数の上限（超えたら古いものから捨てる）"
+    },
+    "compareTicks": {
+      "value": 160,
+      "min": 40,
+      "max": 400,
+      "step": 20,
+      "_doc": "シナリオ比較で進める tick 数の既定と範囲"
+    },
+    "diffScale": {
+      "height": 20,
+      "vegetation": 2,
+      "_doc": "変化マップの感度。標高の変化 1/height、植生の変化 1/vegetation で飽和（見た目の定数）"
+    }
+  }
 }

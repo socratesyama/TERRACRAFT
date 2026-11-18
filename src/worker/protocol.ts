@@ -1,4 +1,7 @@
-import type { DiploState, Nation, Settlement, WorldEvent, WorldParams } from '../core/world';
+import type { CompareResult, CompareSpec } from '../core/compare';
+import type { DiploState, Nation, ObsState, Settlement, WorldEvent, WorldParams } from '../core/world';
+
+export type { CompareResult, CompareSpec };
 
 export type { ContourStroke, Op, ParamKey, Vec2 } from '../core/ops';
 import type { Op, Vec2 } from '../core/ops';
@@ -25,6 +28,9 @@ export type ToWorker =
   | { type: 'redo' }
   | { type: 'rewind'; toOpIndex: number }
   | { type: 'release'; buffers: ArrayBuffer[] }
+  | { type: 'compare'; a: CompareSpec; b: CompareSpec; ticks: number }
+  /** 変化マップの基準を「今」に取り直す */
+  | { type: 'markBaseline' }
   | { type: 'dryRunDam'; a: Vec2; b: Vec2; crest: number };
 
 /** 描画に渡すデータ（core/renderPack.ts のレイアウト: RGBA32F × size²）。転送されるので受け側が release で返す。 */
@@ -61,8 +67,11 @@ export type FromWorker =
       settlements: Settlement[];
       nations: Nation[];
       diplo: Pick<DiploState, 'relations' | 'proposals' | 'wars' | 'lastTrade'>;
+      /** 観測量の時系列。点が増えたときだけ付く（毎回は送らない） */
+      obs?: ObsState;
     }
   | { type: 'notice'; message: string }
+  | { type: 'compareResult'; result: CompareResult }
   | { type: 'progress'; done: number; total: number }
   | { type: 'dryRunResult'; lakeMask: Uint8Array }
   | { type: 'error'; message: string };

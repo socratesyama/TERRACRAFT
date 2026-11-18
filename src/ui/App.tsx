@@ -5,6 +5,7 @@ import type { Op } from '../worker/protocol';
 import { t } from './i18n';
 import { PauseIcon, PlayIcon } from './Icon';
 import { BiomePanel, CivPanel, DevPanel, EventLog, LayerPanel, ScenarioPanel, StatsPanel, ToolPanel } from './panels';
+import { ComparePanel, ObservablesPanel, TracerPanel } from './insightPanels';
 import { DiplomacyPanel, NationPanel, TradePanel, WarPanel } from './nationPanels';
 import { useUiStore, useWorldMirror } from './store';
 import { Viewport, type ViewportHandle } from './Viewport';
@@ -35,6 +36,8 @@ export function App({ data }: { data: DataBundle }) {
     let lastMirrorAt = 0;
 
     client.onReady = () => setWorkerStatus('ready');
+    client.onCompare = (r) => useUiStore.getState().setCompare(r);
+    client.onProgress = (done, total) => useUiStore.getState().setCompareProgress(done / total);
     client.onNotice = (m) => useUiStore.getState().setNotice(m);
     client.onDryRun = (mask) => handleRef.current?.setPreview(mask);
     client.onError = (message) => setWorkerStatus('error', message);
@@ -49,7 +52,7 @@ export function App({ data }: { data: DataBundle }) {
           towns[c.tier]!++;
           population += c.pop;
         }
-        useWorldMirror.getState().update({ ...s.stats, towns, population, nations: s.nations, diplo: s.diplo });
+        useWorldMirror.getState().update({ ...s.stats, towns, population, nations: s.nations, diplo: s.diplo, obs: s.obs });
       }
       useUiStore.getState().mergeEvents(s.eventsFrom, s.events);
       applyRef.current?.(s); // GPU へコピーしてから返却する
@@ -136,11 +139,14 @@ export function App({ data }: { data: DataBundle }) {
             }
           />
           <EventLog onFocus={(x, y) => handleRef.current?.focusOn(x, y)} />
+          <TracerPanel onFocus={(x, y) => handleRef.current?.focusOn(x, y)} onMark={() => clientRef.current?.send({ type: 'markBaseline' })} />
           <CivPanel />
           <NationPanel data={data} />
           <DiplomacyPanel data={data} send={sendOp} />
           <WarPanel data={data} send={sendOp} />
           <TradePanel />
+          <ObservablesPanel data={data} />
+          <ComparePanel data={data} onRun={(a, b, ticks) => clientRef.current?.send({ type: 'compare', a, b, ticks })} />
           <StatsPanel data={data} seed={seed} size={gridSize} />
           <LayerPanel data={data} />
           <BiomePanel data={data} />

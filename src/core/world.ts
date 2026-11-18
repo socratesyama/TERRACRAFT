@@ -172,6 +172,12 @@ export interface TradeFlow {
   mode: 'road' | 'riverDown' | 'riverUp' | 'sea';
 }
 
+/** 観測量の時系列。キーは `指標` （世界）または `指標:国ID`（国）。値は ticks と同じ長さ */
+export interface ObsState {
+  ticks: number[];
+  values: Record<string, number[]>;
+}
+
 export interface DiploState {
   nextId: number;
   relations: Relation[];
@@ -205,6 +211,8 @@ export interface WorldEvent {
     | 'famine'
     | 'nation';
   causeId?: number;
+  /** op イベントだけ: この操作の通し番号（結果のイベントの causeId と対応する） */
+  opId?: number;
   message: string;
   /** 通し番号（ログの順序・差分取得用） */
   seq?: number;
@@ -231,6 +239,7 @@ export interface World {
   civ: CivState;
   nations: Nation[];
   diplo: DiploState;
+  obs: ObsState;
 }
 
 export const WORLD_VERSION = 1;
@@ -304,6 +313,7 @@ export function allocWorld(data: DataBundle, opts: AllocOptions): World {
     civ: { nextId: 1, roadQueue: [], roadDone: [], baseline: null, lastEmit: {}, eventSeq: 0, recentOps: [], stormTick: -1 },
     nations: [],
     diplo: emptyDiplo(),
+    obs: { ticks: [], values: {} },
   };
 }
 

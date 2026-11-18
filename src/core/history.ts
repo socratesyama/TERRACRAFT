@@ -1,4 +1,4 @@
-import type { CivState, DiploState, Nation, DerivedFields, PrimaryFields, Settlement, World, WorldEvent, WorldParams } from './world';
+import type { CivState, DiploState, Nation, ObsState, DerivedFields, PrimaryFields, Settlement, World, WorldEvent, WorldParams } from './world';
 
 type TypedArray = Float32Array | Uint8Array | Int32Array | Uint32Array | Uint16Array;
 
@@ -12,6 +12,7 @@ export interface WorldSnapshot {
   civ: CivState;
   nations: Nation[];
   diplo: DiploState;
+  obs: ObsState;
   events: WorldEvent[];
   floodReached: number;
   dirty: number;
@@ -37,6 +38,7 @@ export function snapshotWorld(w: World): WorldSnapshot {
     civ: structuredClone(w.civ),
     nations: structuredClone(w.nations),
     diplo: structuredClone(w.diplo),
+    obs: structuredClone(w.obs),
     events: w.events.map((e) => ({ ...e })),
     floodReached: w.floodReached,
     dirty: w.dirty,
@@ -52,6 +54,7 @@ export function restoreWorld(w: World, s: WorldSnapshot): void {
   w.civ = structuredClone(s.civ);
   w.nations = structuredClone(s.nations);
   w.diplo = structuredClone(s.diplo);
+  w.obs = structuredClone(s.obs);
   w.events = s.events.map((e) => ({ ...e }));
   w.floodReached = s.floodReached;
   w.dirty = s.dirty;

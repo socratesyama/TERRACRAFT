@@ -50,8 +50,8 @@ export interface ViewportOptions {
   devicePixelRatioMaxMobile: number;
 }
 
-/** 0: 地形, 1: 降水, 2: 気温, 3: 水分, 4: バイオーム, 5: 植生, 6: 洪水リスク, 7: 領土, 8: 防御地形 */
-export type LayerIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+/** 0: 地形, 1: 降水, 2: 気温, 3: 水分, 4: バイオーム, 5: 植生, 6: 洪水リスク, 7: 領土, 8: 防御地形, 9: 変化マップ */
+export type LayerIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 const MAX_BIOMES = 16;
 const MAX_MARKERS = 256;
 
