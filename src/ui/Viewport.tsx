@@ -16,7 +16,7 @@ export interface ViewportHandle {
 interface Props
   extends Omit<
     ViewportOptions,
-    'biomeColors' | 'bareColor' | 'temperatureMinC' | 'temperatureMaxC' | 'civColors' | 'settlementHeights' | 'nationColors'
+    'biomeColors' | 'bareColor' | 'temperatureMinC' | 'temperatureMaxC' | 'civColors' | 'settlementHeights' | 'nationColors' | 'erosionLayerScale'
   > {
   data: DataBundle;
   /** スナップショットの受け口を登録する（描画後に必ず release するのは App 側） */
@@ -33,7 +33,7 @@ const LAYER_INDEX = {
   biome: 4,
   vegetation: 5,
   flood: 6,
-  erosion: 0,
+  erosion: 10,
   nation: 7,
   defense: 8,
   diff: 9,
@@ -66,6 +66,7 @@ export function Viewport({ register, data, client, handleRef, ...opts }: Props) 
         nationColors: ['#555555', ...data.nations.setup.colors],
         settlementHeights: r.settlementHeights.value,
         devicePixelRatioMax,
+        erosionLayerScale: data.runtime.render.erosionLayerScale.value,
         devicePixelRatioMaxMobile,
       });
       vpRef.current = viewport;

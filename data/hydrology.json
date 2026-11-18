@@ -48,13 +48,21 @@
     "n": 1,
     "doc": "河川侵食 E = K·A^m·S^n。m/n ≈ 0.5 は侵食地形学の標準的な値（Whipple & Tucker 1999）。n=1 の陰的解法（Braun & Willett 2013）で刻みに依存せず安定させる",
     "vegetationShield": 0.8,
-    "vegetationShieldDoc": "植生が侵食係数を最大80%減らす（根による土壌保持）"
+    "vegetationShieldDoc": "植生が侵食係数を最大80%減らす（根による土壌保持）",
+    "rate": {
+      "default": 3,
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "_doc": "侵食の倍率（計画書 §21「見て分かる速さは erosionRate 倍率で調整」）。K を直接いじらず、この倍率で見た目の速さを変える。0 で侵食を止める。既定 3 は、200 年で最大 20〜30 m 削れて目で見える値（実測）"
+    }
   },
   "sediment": {
     "capacityK": 0.001,
     "m": 0.5,
     "depositRate": 0.5,
-    "doc": "運搬能力 ∝ capacityK × A^m × 勾配。超過分を depositRate の割合で堆積。河口で勾配が落ちて三角州が自然にできる"
+    "doc": "運搬能力 ∝ capacityK × A^m × 勾配。超過分を depositRate の割合で堆積。河口で勾配が落ちて三角州が自然にできる",
+    "deltaCapacityNote": "河口で運搬能力が落ちて堆積する"
   },
   "slopeStability": {
     "angleOfReposeDry": {

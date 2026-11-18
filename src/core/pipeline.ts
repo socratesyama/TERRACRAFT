@@ -1,3 +1,4 @@
+import { erosionStep } from './terrain/erosion';
 import { stepObs } from './observe';
 import { aiStep, diploStep } from './nations/diplomacy';
 import { econStep, initEconomy, nationsKcMod, tradeStep } from './nations/economy';
@@ -170,6 +171,18 @@ export function stepClimate(w: World, data: DataBundle, degraded: boolean): void
   if (w.tick % vegInterval === 0) growVegetation(w, data, vegInterval);
 }
 
+/**
+ * 侵食（§6.4）: 4 tick に 1 回（高速モードは 8 tick）、その間隔ぶんの dt をまとめて適用する（陰的解法なので安定）。
+ * 標高が変わるので流向・勾配を引き直すが、道路は引き直さない（道路は侵食のたびに消えてはいけない）。
+ */
+export function stepErosion(w: World, data: DataBundle, degraded: boolean): void {
+  const sch = data.runtime.schedule;
+  const every = degraded ? sch.erosionIntervalDegradedTicks : sch.erosionIntervalTicks;
+  if (w.tick === 0 || w.tick % every !== 0 || w.params.erosionRate <= 0) return;
+  const rep = erosionStep(w, data, every);
+  if (rep.removed > 0 || rep.deposited > 0) recomputeTerrainDerived(w, data);
+}
+
 /** dirty フラグに応じた再計算（Op の適用後、または tick の頭）。標高が変わったら道路も引き直す。 */
 export function refreshDirty(w: World, data: DataBundle): void {
   if (w.dirty & Dirty.Height) {
@@ -196,6 +209,7 @@ export function stepWorld(w: World, data: DataBundle, degraded: boolean): void {
     flood(w, data, w.civ.breach.surge, w.civ.breach.why);
     w.civ.breach = null;
   }
+  stepErosion(w, data, degraded);
   const rng = (salt: number) => createRng(deriveSeed(w.seed, w.tick * 16 + salt));
   stormStep(w, data, rng(1));
   landslideStep(w, data, rng(2));

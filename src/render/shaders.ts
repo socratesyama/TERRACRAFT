@@ -32,6 +32,8 @@ export const TERRAIN_FRAGMENT = /* glsl */ `
   uniform sampler2D uData2;
   uniform sampler2D uData3;
   uniform sampler2D uData4;
+  uniform sampler2D uData5;
+  uniform float uErosionScale;
   uniform sampler2D uPreview;
   uniform vec3 uNation[9];
   uniform vec3 uFront;
@@ -86,6 +88,7 @@ export const TERRAIN_FRAGMENT = /* glsl */ `
     vec4 e = texture2D(uData2, vTuv);
     vec4 f = texture2D(uData3, vTuv);
     vec4 g = texture2D(uData4, vTuv);
+    vec4 q = texture2D(uData5, vTuv);
     float px = 1.0 / uSize;
     float hE = texture2D(uData, vTuv + vec2(px, 0.0)).r;
     float hW = texture2D(uData, vTuv - vec2(px, 0.0)).r;
@@ -105,6 +108,11 @@ export const TERRAIN_FRAGMENT = /* glsl */ `
       base = moistRamp(clamp(e.g, 0.0, 1.0));
     } else if (uLayer == 6) {
       base = mix(vec3(0.82, 0.84, 0.80), uFlood, clamp(f.a, 0.0, 1.0));
+    } else if (uLayer == 10) {
+      // 侵食・堆積: 削れた所は暖色（赤橙）、積もった所は寒色（青緑）。色だけに頼らず、濃さが量を表す
+      float v = clamp(q.r / uErosionScale, -1.0, 1.0);
+      vec3 ground = hypsometric(max(d.r, uSeaLevel)) * 0.5 + 0.1;
+      base = v < 0.0 ? mix(ground, vec3(0.95, 0.42, 0.12), -v) : mix(ground, vec3(0.10, 0.62, 0.78), v);
     } else if (uLayer == 9) {
       // 変化マップ: 直近の操作の前（または「今を基準にする」）からの変化。標高・植生・領有の変化
       base = mix(hypsometric(max(d.r, uSeaLevel)) * 0.55 + 0.08, vec3(1.0, 0.5, 0.1), clamp(g.a * 1.6, 0.0, 1.0));

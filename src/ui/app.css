@@ -707,3 +707,7 @@ button.primary:hover:not(:disabled) {
   font-weight: 600;
   margin: 8px 0 0;
 }
+/* 侵食レイヤーの凡例: シェーダ（erosion）と同じ。削れ = 暖色、積もり = 寒色 */
+.legend-erosion {
+  background: linear-gradient(90deg, #f26b1f, #5b5b5b, #1a9fc7);
+}

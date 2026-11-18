@@ -12,6 +12,7 @@ export interface PrimaryFields {
   height: Float32Array; // 地表標高 0〜1（水面は含まない）
   fixed: Uint8Array; // 等高線で拘束されたセル
   sediment: Float32Array; // 輸送中の土砂
+  erosion: Float32Array; // 侵食・堆積による標高の正味の変化（負 = 削れた、正 = 積もった）。侵食レイヤー用
   vegetation: Float32Array; // 植生密度 0〜1
   population: Float32Array;
   landUse: Uint8Array; // 0:なし 1:農地 2:村 3:町 4:都市 5:港
@@ -48,6 +49,7 @@ export interface WorldParams {
   temperatureBias: number; // 気温の加算（恒等 = 0）
   windDir: number; // 0〜7（M1で scenarios の windDirection から決める）
   peaceMode: number; // 1 のとき戦争が起きない（既定 0）
+  erosionRate: number; // 侵食の倍率（hydrology.json streamPower.rate。0 で止まる）
 }
 
 /** 集落（オブジェクトのリスト。配列 population / landUse は描画のためにここからラスタライズする §8.3） */
@@ -286,11 +288,13 @@ export function allocWorld(data: DataBundle, opts: AllocOptions): World {
       temperatureBias: 0,
       windDir: 0,
       peaceMode: 0,
+      erosionRate: data.hydrology.streamPower.rate.default,
     },
     primary: {
       height: new Float32Array(n),
       fixed: new Uint8Array(n),
       sediment: new Float32Array(n),
+      erosion: new Float32Array(n),
       vegetation: new Float32Array(n),
       population: new Float32Array(n),
       landUse: new Uint8Array(n),
@@ -336,6 +340,7 @@ export function hashWorld(w: World, quantizeScale: number): number {
     hashFloat32(p.height, quantizeScale),
     hashUint8(p.fixed),
     hashFloat32(p.sediment, quantizeScale),
+    hashFloat32(p.erosion, quantizeScale),
     hashFloat32(p.vegetation, quantizeScale),
     hashFloat32(p.population, quantizeScale),
     hashUint8(p.landUse),

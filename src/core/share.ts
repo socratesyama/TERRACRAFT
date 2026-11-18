@@ -19,7 +19,7 @@ export interface ShareState {
 
 export class ShareError extends Error {}
 
-const PARAM_KEYS: ParamKey[] = ['seaLevel', 'edgeMode', 'rainfallScale', 'temperatureBias', 'windDir', 'peaceMode'];
+const PARAM_KEYS: ParamKey[] = ['seaLevel', 'edgeMode', 'rainfallScale', 'temperatureBias', 'windDir', 'peaceMode', 'erosionRate'];
 const DIPLO_ACTIONS = ['proposeTrade', 'proposeNonAggression', 'gift', 'declareWar', 'proposePeace', 'cancelPact', 'embargo', 'liftEmbargo', 'sabotage', 'respond'] as const;
 const KIND = { contour: 0, raise: 1, forest: 2, dam: 3, fill: 4, param: 5, rain: 6, diplo: 7, military: 8 } as const;
 

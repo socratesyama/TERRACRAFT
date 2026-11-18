@@ -7,10 +7,11 @@ import type { World } from './world';
  * 1枚目: R 標高 / G 水面 / B 川 / A 降水(mm/年)
  * 2枚目: R 気温(°C) / G 水分 / B 植生 / A バイオーム番号
  * 3枚目: R 土地利用(civ/settlements.ts LAND_USE) / G 人口 / B 道路 / A 洪水リスク
+ * 5枚目: R 侵食・堆積による標高の正味の変化（負 = 削れた、正 = 積もった。正規化標高）/ G 輸送中の土砂 / B・A 予備
  * 4枚目: R 領有する国の ID（0 = 無主地） / G 戦争の前線なら 1 / B 防御の地形倍率（水域は 0） / A 基準からの変化 0〜1（因果トレーサの変化マップ）
  */
 export const PACK_CHANNELS = 4;
-export const PACK_TEXTURES = 4;
+export const PACK_TEXTURES = 5;
 /** 水面が無いセルの G の値 */
 export const NO_WATER = -1;
 
@@ -41,6 +42,7 @@ export function buildRenderPack(w: World, data: DataBundle, out: Float32Array, b
   const second = n * PACK_CHANNELS; // 2枚目の先頭
   const third = second * 2; // 3枚目の先頭
   const fourth = second * 3; // 4枚目の先頭
+  const fifth = second * 4; // 5枚目の先頭
   const { temperature, moisture, biome } = w.derived;
   const lakeMin = data.hydrology.priorityFlood.lakeDepthMin;
   const { flowThreshold, widthFactor } = data.hydrology.river;
@@ -65,6 +67,8 @@ export function buildRenderPack(w: World, data: DataBundle, out: Float32Array, b
     out[third + o + 1] = w.primary.population[i];
     out[third + o + 2] = w.primary.road[i];
     out[third + o + 3] = w.derived.floodRisk[i];
+    out[fifth + o] = w.primary.erosion[i]!;
+    out[fifth + o + 1] = w.primary.sediment[i]!;
     out[fourth + o] = w.primary.owner[i]!;
     out[fourth + o + 1] = 0;
     out[fourth + o + 3] = base

@@ -201,6 +201,11 @@ export function applyOp(w: World, data: DataBundle, op: Op): OpResult {
         case 'peaceMode':
           w.params.peaceMode = op.value >= 0.5 ? 1 : 0;
           return { dirty: 0, message: w.params.peaceMode ? '平和モードにした（戦争は起きない）' : '平和モードをやめた' };
+        case 'erosionRate': {
+          const r = data.hydrology.streamPower.rate;
+          w.params.erosionRate = Math.min(r.max, Math.max(r.min, op.value));
+          return { dirty: 0, message: `侵食の倍率を ${w.params.erosionRate} にした` };
+        }
         case 'seaLevel':
           w.params.seaLevel = Math.min(0.5, Math.max(0, op.value));
           return { dirty: Dirty.Height | Dirty.Climate | Dirty.Water, message: `海面を ${w.params.seaLevel.toFixed(2)} にした` };

@@ -46,6 +46,8 @@ export interface ViewportOptions {
   nationColors: string[];
   /** 集落マーカーの高さ（セル）。村・町・都市・港町 */
   settlementHeights: number[];
+  /** 侵食レイヤーで最も濃く表示する標高変化（runtime.json render.erosionLayerScale） */
+  erosionLayerScale: number;
   devicePixelRatioMax: number;
   devicePixelRatioMaxMobile: number;
 }
@@ -151,6 +153,8 @@ export class TerrainViewport {
       uData2: { value: this.textures[1] },
       uData3: { value: this.textures[2] },
       uData4: { value: this.textures[3] },
+      uData5: { value: this.textures[4] },
+      uErosionScale: { value: opts.erosionLayerScale },
       uNation: { value: Array.from({ length: 9 }, (_, i) => vec3(opts.nationColors[i] ?? '#555555')) },
       uFront: { value: vec3(opts.civColors.front ?? '#ff4d3a') },
       uPreview: { value: this.preview },

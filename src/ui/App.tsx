@@ -267,6 +267,7 @@ export function App({ data }: { data: DataBundle }) {
           <DevPanel
             data={data}
             onPeace={(v) => clientRef.current?.send({ type: 'op', op: { t: 'param', tick: 0, key: 'peaceMode', value: v ? 1 : 0 } })}
+            onErosion={(v) => clientRef.current?.send({ type: 'op', op: { t: 'param', tick: 0, key: 'erosionRate', value: v } })}
             onRainfall={(v) =>
               clientRef.current?.send({ type: 'op', op: { t: 'param', tick: 0, key: 'rainfallScale', value: v } })
             }

@@ -80,7 +80,7 @@ export function LayerPanel({ data }: { data: DataBundle }) {
       <h2 id="layers-title">{t('panel.layers')}</h2>
       <div className="choices" role="radiogroup" aria-label={t('panel.layers')}>
         {LAYERS.map(({ id, label }) => {
-          const enabled = id !== 'erosion';
+          const enabled = true;
           return (
             <button
               key={id}
@@ -104,6 +104,15 @@ export function LayerPanel({ data }: { data: DataBundle }) {
             <span>
               {precipMaxMm} mm/年 {t('legend.wet')}
             </span>
+          </div>
+        </div>
+      )}
+      {layer === 'erosion' && (
+        <div className="legend" aria-label={t('layer.erosion')}>
+          <div className="legend-bar legend-erosion" aria-hidden="true" />
+          <div className="legend-labels">
+            <span>{t('legend.eroded')} {Math.round(data.runtime.render.erosionLayerScale.value * data.scale.maxElevation.value)} m</span>
+            <span>{t('legend.deposited')}</span>
           </div>
         </div>
       )}
@@ -157,7 +166,6 @@ export function LayerPanel({ data }: { data: DataBundle }) {
           ))}
         </ul>
       )}
-      <p className="note">{t('panel.layers.soon')}</p>
     </section>
   );
 }
@@ -220,11 +228,16 @@ export function DevPanel({
   data,
   onRainfall,
   onPeace,
+  onErosion,
 }: {
   data: DataBundle;
   onRainfall: (v: number) => void;
   onPeace: (v: boolean) => void;
+  onErosion: (v: number) => void;
 }) {
+  const er = data.hydrology.streamPower.rate;
+  const erosionRate = useUiStore((s) => s.erosionRate) ?? er.default;
+  const setErosionRate = useUiStore((s) => s.setErosionRate);
   const peace = useUiStore((s) => s.peaceMode);
   const setPeace = useUiStore((s) => s.setPeaceMode);
   const v = useUiStore((s) => s.rainfallScale);
@@ -247,6 +260,23 @@ export function DevPanel({
             const next = Number(e.target.value);
             setV(next);
             onRainfall(next);
+          }}
+        />
+      </label>
+      <label className="slider">
+        <span>
+          {t('dev.erosion')} ×{erosionRate}
+        </span>
+        <input
+          type="range"
+          min={er.min}
+          max={er.max}
+          step={er.step}
+          value={erosionRate}
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            setErosionRate(next);
+            onErosion(next);
           }}
         />
       </label>

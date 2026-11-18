@@ -12,6 +12,9 @@ interface UiState {
   scenarioId: string;
   setScenarioId: (id: string) => void;
   rainfallScale: number;
+  /** 侵食の倍率。null は data の既定 */
+  erosionRate: number | null;
+  setErosionRate: (v: number | null) => void;
   setRainfallScale: (v: number) => void;
   layer: LayerId;
   setLayer: (layer: LayerId) => void;
@@ -75,7 +78,9 @@ interface UiState {
 
 export const useUiStore = create<UiState>()((set) => ({
   scenarioId: 'island',
-  setScenarioId: (scenarioId) => set({ scenarioId, playing: false, rainfallScale: 1, peaceMode: false }),
+  setScenarioId: (scenarioId) => set({ scenarioId, playing: false, rainfallScale: 1, peaceMode: false, erosionRate: null }),
+  erosionRate: null,
+  setErosionRate: (erosionRate) => set({ erosionRate }),
   rainfallScale: 1,
   setRainfallScale: (rainfallScale) => set({ rainfallScale }),
   layer: 'biome',
