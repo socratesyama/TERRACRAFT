@@ -246,21 +246,168 @@ button.primary:hover:not(:disabled) {
   white-space: pre-wrap;
 }
 
-/* ---- 狭い画面: パネルを3D表示の下へ ---- */
+/* ---- 欠かせない補助（広い画面では出さない）---- */
+.quickbar,
+.chips,
+.sheet-toggle {
+  display: none;
+}
+.demo-btn {
+  margin-left: auto;
+}
+.stage {
+  position: relative;
+}
+.welcome {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(10, 20, 32, 0.78);
+}
+.welcome-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 420px;
+  padding: var(--space-5);
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+.welcome-card h2 {
+  font-size: var(--text-lg);
+}
+.welcome-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.demo-caption {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-4);
+  z-index: 10;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: calc(100% - 2 * var(--space-4));
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+/* ---- 狭い画面（スマホ・縦持ちのタブレット）: 3D 表示を画面いっぱいにし、パネルは下部シートへ ---- */
 @media (max-width: 900px) {
+  :root {
+    --sheet-h: 58dvh;
+  }
+  html,
+  body {
+    overscroll-behavior: none; /* 引っ張って更新・端のバウンスで、描画の操作が途切れないように */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
   .app {
-    height: auto;
-    min-height: 100%;
-    grid-template-rows: auto auto auto;
+    height: 100dvh;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .topbar {
+    padding-top: calc(var(--space-2) + env(safe-area-inset-top));
+    padding-bottom: var(--space-2);
+    align-items: center;
+  }
+  .tagline {
+    display: none;
   }
   .stage {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
   .viewport {
-    height: 56vh;
+    height: 100%;
+  }
+  .quickbar {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--space-2);
+    right: var(--space-2);
+    z-index: 6;
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .quickbar .choice {
+    flex: none;
+    background: var(--surface);
+    opacity: 0.94;
+  }
+  .quickbar .choice.active {
+    background: var(--accent);
+    opacity: 1;
+  }
+  .chips {
+    position: absolute;
+    left: var(--space-2);
+    bottom: var(--space-2);
+    z-index: 4;
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--text-sm);
+    background: var(--surface);
+    border-radius: var(--radius);
+    font-variant-numeric: tabular-nums;
+  }
+  .side {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 8;
+    max-height: var(--sheet-h);
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+    border-radius: 16px 16px 0 0;
+    transform: translateY(105%);
+    transition: transform 200ms ease-out;
+    overscroll-behavior: contain;
+  }
+  .side[data-open='true'] {
+    transform: none;
+  }
+  .sheet-toggle {
+    display: inline-flex;
+    align-items: center;
+  }
+  .demo-caption {
+    bottom: calc(var(--space-2) + 48px);
+  }
+  .timeline {
+    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+    gap: var(--space-2) var(--space-3);
   }
   .status {
     margin-left: 0;
+  }
+  .year {
+    display: none; /* 時間はチップに出す */
+  }
+}
+
+/* タッチ端末: 触る面を大きく（44px はボタン共通。スライダのつまみも） */
+@media (pointer: coarse) {
+  input[type='range'] {
+    min-height: var(--tap);
+  }
+  .choices {
+    gap: var(--space-3);
   }
 }
 

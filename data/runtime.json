@@ -145,6 +145,12 @@
     "nationModeDefault": {
       "value": true,
       "_doc": "新しい世界を作るとき、国家モード（国・外交・貿易・戦争）を既定でオンにする"
+    },
+    "mobile": {
+      "_doc": "タッチ端末（pointer: coarse）の設定（§13.6, §17）。標準のグリッドを小さくし、2 本指はカメラ操作にする",
+      "gridSize": 128,
+      "sheetMaxHeightVh": 58,
+      "welcomeStorageKey": "terracraft.welcomeSeen"
     }
   },
   "sources": [
@@ -198,5 +204,146 @@
       "debounceMs": 2000,
       "manualSlots": 3
     }
+  },
+  "demo": {
+    "_doc": "30 秒デモ（§13.2 DemoPlayer, §2.2）。手順はここに書き、コードには書かない。atMs はデモ開始からの経過ミリ秒。do: scenario / layer / tool / caption / op / play / pause / speed / end",
+    "scenario": "island",
+    "steps": [
+      {
+        "atMs": 0,
+        "do": "scenario",
+        "value": "island"
+      },
+      {
+        "atMs": 600,
+        "do": "layer",
+        "value": "terrain"
+      },
+      {
+        "atMs": 900,
+        "do": "caption",
+        "text": "線と盛り土で、地形をつくります。"
+      },
+      {
+        "atMs": 2200,
+        "do": "op",
+        "op": {
+          "t": "raise",
+          "pts": [
+            0.5,
+            0.5,
+            0.56,
+            0.46
+          ],
+          "r": 0.09,
+          "amount": 0.08
+        }
+      },
+      {
+        "atMs": 4200,
+        "do": "caption",
+        "text": "雨を降らせると、水は低いところへ流れます。"
+      },
+      {
+        "atMs": 4600,
+        "do": "layer",
+        "value": "precip"
+      },
+      {
+        "atMs": 5200,
+        "do": "op",
+        "op": {
+          "t": "rain",
+          "amount": 2
+        }
+      },
+      {
+        "atMs": 5400,
+        "do": "speed",
+        "value": 4
+      },
+      {
+        "atMs": 5500,
+        "do": "play"
+      },
+      {
+        "atMs": 9500,
+        "do": "caption",
+        "text": "川ができ、湿った土地に植生が広がります。"
+      },
+      {
+        "atMs": 9700,
+        "do": "layer",
+        "value": "vegetation"
+      },
+      {
+        "atMs": 13500,
+        "do": "caption",
+        "text": "気候が植生を決め、バイオームが現れます。"
+      },
+      {
+        "atMs": 13700,
+        "do": "layer",
+        "value": "biome"
+      },
+      {
+        "atMs": 17500,
+        "do": "caption",
+        "text": "平野に集落が生まれ、国が育ちます。"
+      },
+      {
+        "atMs": 17700,
+        "do": "layer",
+        "value": "nation"
+      },
+      {
+        "atMs": 18000,
+        "do": "speed",
+        "value": 16
+      },
+      {
+        "atMs": 23000,
+        "do": "caption",
+        "text": "山を削ると、雨と川と暮らしが変わります。"
+      },
+      {
+        "atMs": 23200,
+        "do": "layer",
+        "value": "biome"
+      },
+      {
+        "atMs": 23600,
+        "do": "op",
+        "op": {
+          "t": "raise",
+          "pts": [
+            0.5,
+            0.5,
+            0.56,
+            0.46
+          ],
+          "r": 0.1,
+          "amount": -0.1
+        }
+      },
+      {
+        "atMs": 23800,
+        "do": "speed",
+        "value": 4
+      },
+      {
+        "atMs": 28500,
+        "do": "caption",
+        "text": "あなたの手で、世界を変えてみましょう。"
+      },
+      {
+        "atMs": 30000,
+        "do": "pause"
+      },
+      {
+        "atMs": 30200,
+        "do": "end"
+      }
+    ]
   }
 }

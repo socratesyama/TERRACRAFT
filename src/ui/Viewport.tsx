@@ -122,8 +122,40 @@ function attachTools(vp: TerrainViewport, data: DataBundle, client: () => Simula
     client()?.send({ type: 'dryRunDam', a, b, crest: useUiStore.getState().damCrest });
   };
 
+  // タッチ: 1 本指は描画、2 本指はカメラ（ピンチ・パン）。2 本目が来たら、描きかけの線を捨て、
+  // カメラ側が知らない 1 本目のタッチを渡し直して、2 本指の操作として始める
+  const touches = new Map<number, PointerEventInit>();
+  let forwarding = false;
+  const initOf = (e: PointerEvent): PointerEventInit => ({
+    pointerId: e.pointerId,
+    pointerType: e.pointerType,
+    isPrimary: e.isPrimary,
+    clientX: e.clientX,
+    clientY: e.clientY,
+    button: e.button,
+    buttons: e.buttons,
+    bubbles: true,
+    cancelable: true,
+  });
+
   const down = (e: PointerEvent): void => {
+    if (forwarding) return;
     const st = useUiStore.getState();
+    if (e.pointerType === 'touch') {
+      if (touches.size >= 1 && !touches.has(e.pointerId)) {
+        if (stroke) {
+          const first = [...touches.values()][0]!;
+          stroke = null;
+          vp.setPreview(null);
+          forwarding = true;
+          canvas.dispatchEvent(new PointerEvent('pointerdown', first));
+          forwarding = false;
+        }
+        touches.set(e.pointerId, initOf(e));
+        return; // 2 本目以降はそのままカメラへ（描画は始めない）
+      }
+      touches.set(e.pointerId, initOf(e));
+    }
     if (st.tool === 'view' || e.button !== 0) return;
     const c = vp.pick(e.clientX, e.clientY);
     if (!c) return;
@@ -133,6 +165,7 @@ function attachTools(vp: TerrainViewport, data: DataBundle, client: () => Simula
   };
 
   const move = (e: PointerEvent): void => {
+    if (e.pointerType === 'touch' && touches.has(e.pointerId)) touches.set(e.pointerId, initOf(e));
     const st = useUiStore.getState();
     if (st.tool === 'view') {
       vp.setBrush(null, 0);
@@ -153,7 +186,8 @@ function attachTools(vp: TerrainViewport, data: DataBundle, client: () => Simula
     }
   };
 
-  const up = (): void => {
+  const up = (e?: PointerEvent): void => {
+    if (e) touches.delete(e.pointerId);
     if (!stroke) return;
     const { tool, pts } = stroke;
     stroke = null;

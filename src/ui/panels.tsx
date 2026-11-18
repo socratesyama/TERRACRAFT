@@ -184,6 +184,10 @@ export function ScenarioPanel({ data }: { data: DataBundle }) {
           </button>
         ))}
       </div>
+      <label className="check">
+        <input type="checkbox" checked={nationMode} onChange={(e) => setNationMode(e.target.checked)} />
+        <span>{t('scenario.nationMode')}</span>
+      </label>
     </section>
   );
 }
@@ -261,7 +265,7 @@ export function DevPanel({
   );
 }
 
-const TOOLS: readonly { id: ToolId; label: MessageKey }[] = [
+export const TOOLS: readonly { id: ToolId; label: MessageKey }[] = [
   { id: 'view', label: 'tool.view' },
   { id: 'mountain', label: 'tool.mountain' },
   { id: 'dig', label: 'tool.dig' },

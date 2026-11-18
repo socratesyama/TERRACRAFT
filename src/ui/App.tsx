@@ -8,6 +8,10 @@ import { PauseIcon, PlayIcon } from './Icon';
 import { BiomePanel, CivPanel, DevPanel, EventLog, LayerPanel, ScenarioPanel, StatsPanel, ToolPanel } from './panels';
 import { ComparePanel, ObservablesPanel, TracerPanel } from './insightPanels';
 import { DiplomacyPanel, NationPanel, TradePanel, WarPanel } from './nationPanels';
+import { runDemo } from './demo';
+import { Chips, QuickBar } from './mobile';
+import { DemoCaption, Welcome } from './welcome';
+import type { LayerId, ToolId } from './store';
 import { SharePanel, useAutosave, useShareBoot } from './sharePanel';
 import { useUiStore, useWorldMirror } from './store';
 import { Viewport, type ViewportHandle } from './Viewport';
@@ -28,7 +32,10 @@ export function App({ data }: { data: DataBundle }) {
 
   // seed は scenarios.json の比較用 seed、グリッドは scale.json の既定（数値は data/ から）。
   const [seed, setSeed] = useState(data.scenarios.comparison.defaultSeed);
-  const [gridSize, setGridSize] = useState<number>(data.scale.grid.defaultSize);
+  const [gridSize, setGridSize] = useState<number>(() => {
+    const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+    return coarse ? data.runtime.ui.mobile.gridSize : data.scale.grid.defaultSize;
+  });
   const initNonce = useUiStore((s) => s.initNonce);
   /** 共有 URL・保存からの読み込み。次の init で一度だけ使う */
   const pendingRef = useRef<{ ops: Op[]; fastForwardTo: number } | null>(null);
@@ -131,6 +138,68 @@ export function App({ data }: { data: DataBundle }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [undo, redo]);
 
+  const stopDemoRef = useRef<(() => void) | null>(null);
+  const startDemo = useCallback(() => {
+    const ui = useUiStore.getState();
+    ui.setWelcomeOpen(false);
+    ui.setSheetOpen(false);
+    stopDemoRef.current?.();
+    ui.setDemoRunning(true);
+    const send = (m: Parameters<SimulationClient['send']>[0]): void => clientRef.current?.send(m);
+    stopDemoRef.current = runDemo(data, {
+      scenario: (id) => {
+        useUiStore.getState().setScenarioId(id);
+        useUiStore.getState().bumpInit();
+      },
+      layer: (id) => useUiStore.getState().setLayer(id as LayerId),
+      tool: (id) => useUiStore.getState().setTool(id as ToolId),
+      caption: (text) => useUiStore.getState().setCaption(text),
+      op: (op) => send({ type: 'op', op }),
+      play: () => {
+        const u = useUiStore.getState();
+        u.setPlaying(true);
+        send({ type: 'play', speed: u.speed });
+      },
+      pause: () => {
+        useUiStore.getState().setPlaying(false);
+        send({ type: 'pause' });
+      },
+      speed: (v) => {
+        const u = useUiStore.getState();
+        u.setSpeed(v);
+        if (u.playing) send({ type: 'play', speed: v });
+      },
+      end: () => useUiStore.getState().setDemoRunning(false),
+    });
+  }, [data]);
+  const stopDemo = useCallback(() => {
+    stopDemoRef.current?.();
+    stopDemoRef.current = null;
+  }, []);
+  useEffect(() => () => stopDemoRef.current?.(), []);
+  const closeWelcome = useCallback(() => {
+    useUiStore.getState().setWelcomeOpen(false);
+    try {
+      localStorage.setItem(data.runtime.ui.mobile.welcomeStorageKey, '1');
+    } catch {
+      // 保存できなくても、次回また出るだけ
+    }
+  }, [data]);
+  useEffect(() => {
+    let seen = false;
+    try {
+      seen = localStorage.getItem(data.runtime.ui.mobile.welcomeStorageKey) === '1';
+    } catch {
+      // 読めない環境では毎回出す
+    }
+    if (!seen && !window.location.hash.startsWith('#w=')) useUiStore.getState().setWelcomeOpen(true);
+  }, [data]);
+
+  const sheetOpen = useUiStore((s) => s.sheetOpen);
+  const setSheetOpen = useUiStore((s) => s.setSheetOpen);
+  const sendRain = () =>
+    clientRef.current?.send({ type: 'op', op: { t: 'rain', tick: 0, amount: data.runtime.ui.tools.rainAmount.value } });
+
   const togglePlay = () => {
     const next = !playing;
     setPlaying(next);
@@ -150,9 +219,16 @@ export function App({ data }: { data: DataBundle }) {
       <header className="topbar">
         <h1>{t('app.title')}</h1>
         <p className="tagline">{t('app.tagline')}</p>
+        <button type="button" className="choice demo-btn" onClick={startDemo} disabled={workerStatus !== 'ready'}>
+          {t('demo.start')}
+        </button>
       </header>
 
       <main className="stage">
+        <QuickBar data={data} onUndo={undo} onRain={sendRain} />
+        <Chips />
+        <DemoCaption onStop={stopDemo} />
+        <Welcome onDemo={startDemo} onClose={closeWelcome} />
         <Viewport
           gridSize={gridSize}
           data={data}
@@ -165,7 +241,7 @@ export function App({ data }: { data: DataBundle }) {
           devicePixelRatioMax={data.runtime.render.devicePixelRatioMax}
           devicePixelRatioMaxMobile={data.runtime.render.devicePixelRatioMaxMobile}
         />
-        <aside className="side">
+        <aside className="side" data-open={sheetOpen}>
           <ScenarioPanel data={data} />
           <SharePanel data={data} client={getClient} onLoad={loadShared} onScreenshot={screenshot} />
           <ToolPanel
@@ -223,6 +299,15 @@ export function App({ data }: { data: DataBundle }) {
             </button>
           ))}
         </div>
+
+        <button
+          type="button"
+          className="sheet-toggle"
+          aria-expanded={sheetOpen}
+          onClick={() => setSheetOpen(!sheetOpen)}
+        >
+          {sheetOpen ? t('sheet.close') : t('sheet.open')}
+        </button>
 
         <p className="year">
           {t('status.tick')} <strong>{tick}</strong>

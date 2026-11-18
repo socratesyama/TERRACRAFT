@@ -53,6 +53,17 @@ interface UiState {
   /** Worker を作り直す合図（同じシナリオのまま読み込み直すとき） */
   initNonce: number;
   bumpInit: () => void;
+  /** デモのキャプション（null で非表示）と、デモ再生中か */
+  caption: string | null;
+  setCaption: (c: string | null) => void;
+  demoRunning: boolean;
+  setDemoRunning: (v: boolean) => void;
+  /** 初回の入口（デモ／サンプル／白紙） */
+  welcomeOpen: boolean;
+  setWelcomeOpen: (v: boolean) => void;
+  /** 狭い画面の下部シート（パネル一覧）の開閉 */
+  sheetOpen: boolean;
+  setSheetOpen: (v: boolean) => void;
   playing: boolean;
   speed: number;
   workerStatus: 'connecting' | 'ready' | 'error';
@@ -102,6 +113,14 @@ export const useUiStore = create<UiState>()((set) => ({
   setReplayProgress: (replayProgress) => set({ replayProgress }),
   initNonce: 0,
   bumpInit: () => set((st) => ({ initNonce: st.initNonce + 1, playing: false })),
+  caption: null,
+  setCaption: (caption) => set({ caption }),
+  demoRunning: false,
+  setDemoRunning: (demoRunning) => set({ demoRunning }),
+  welcomeOpen: false,
+  setWelcomeOpen: (welcomeOpen) => set({ welcomeOpen }),
+  sheetOpen: false,
+  setSheetOpen: (sheetOpen) => set({ sheetOpen }),
   playing: false,
   speed: 1,
   workerStatus: 'connecting',
