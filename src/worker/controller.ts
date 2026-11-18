@@ -4,6 +4,7 @@ import { flood } from '../core/civ/disasters';
 import { emit } from '../core/events';
 import { restoreWorld, snapshotWorld, type WorldSnapshot } from '../core/history';
 import { applyOp, type Op } from '../core/ops';
+import { quantizeOp } from '../core/share';
 import { buildWorld, refreshDirty, stepWorld } from '../core/pipeline';
 import { findOutlets, priorityFlood } from '../core/hydrology';
 import { runComparison } from '../core/compare';
@@ -23,6 +24,9 @@ export class SimulationController {
   private world: World | null = null;
   private pool: BufferPool | null = null;
   private readonly opLog: Op[] = [];
+  /** 高速モード（§10.3）で進んだ tick を含むか。含むと URL からの再生は完全には一致しない（計画書 §10.3 と §14 の緊張） */
+  private everDegraded = false;
+  private initInfo = { scenarioId: '', seed: 0, size: 0, nations: false };
   /** Op を適用する直前のスナップショット（Undo 用リング §9.3） */
   private ring: { opIndex: number; snap: WorldSnapshot }[] = [];
   private redoStack: Op[] = [];
@@ -73,7 +77,9 @@ export class SimulationController {
         this.ring = [];
         this.redoStack = [];
         this.lastSentSeq = 0;
-        for (const op of msg.ops ?? []) this.commitOp(this.world, op, false);
+        this.initInfo = { scenarioId: msg.scenarioId, seed: msg.seed, size: this.world.size, nations: this.world.nations.length > 0 };
+        this.everDegraded = false;
+        this.replay(this.world, msg.ops ?? [], msg.fastForwardTo ?? 0);
         refreshDirty(this.world, this.data);
         this.baseline = takeBaseline(this.world);
         this.lastSentObs = -1;
@@ -100,6 +106,11 @@ export class SimulationController {
           return;
         }
         this.commitOp(w, msg.op, true);
+        return;
+      }
+      case 'exportState': {
+        const w = this.requireWorld();
+        this.post({ type: 'state', ...this.initInfo, ops: this.opLog.slice(), tick: w.tick, exact: !this.everDegraded }, []);
         return;
       }
       case 'undo':
@@ -180,7 +191,7 @@ export class SimulationController {
    * 因果の紐づけ用に直近の Op として記録する。停止中なら再計算してすぐ画面に出す（時間は進めない）。
    */
   private commitOp(w: World, input: Op, refresh: boolean): void {
-    const op: Op = { ...input, tick: w.tick };
+    const op: Op = { ...quantizeOp(this.data, input), tick: w.tick };
     if (refresh) this.baseline = takeBaseline(w); // 変化マップは、直近の操作の直前を基準にする
     const opIndex = this.opLog.length;
     this.ring.push({ opIndex, snap: snapshotWorld(w) });
@@ -205,6 +216,35 @@ export class SimulationController {
       refreshDirty(w, this.data);
       this.maybeSnapshot(true);
     }
+  }
+
+  /**
+   * 共有 URL などからの再生（§14.3）。Op は記録した tick の時点で適用し、その間は描画なしで進める。
+   * 失敗する Op（外交の「今はできない」など）は、記録したときも失敗して残っていないはずなので、飛ばす。
+   * 早送りの上限は runtime.json share.maxFastForwardTicks。
+   */
+  private replay(w: World, ops: Op[], fastForwardTo: number): void {
+    const sh = this.data.runtime.share;
+    const target = Math.min(Math.max(0, Math.floor(fastForwardTo)), sh.maxFastForwardTicks.value);
+    let k = 0;
+    const due = (): void => {
+      while (k < ops.length && ops[k]!.tick <= w.tick) {
+        try {
+          this.commitOp(w, ops[k]!, false);
+        } catch {
+          // 飛ばす
+        }
+        k++;
+      }
+    };
+    due();
+    for (let t = 1; t <= target; t++) {
+      w.tick++;
+      stepWorld(w, this.data, false);
+      due();
+      if (t % sh.progressEveryTicks === 0) this.post({ type: 'progress', done: t, total: target, what: 'replay' }, []);
+    }
+    // target を過ぎた tick の Op は適用しない（「設計図のみ」は tick 0 の Op だけで始まる）
   }
 
   private undo(): void {
@@ -262,7 +302,9 @@ export class SimulationController {
     const w = this.requireWorld();
     const t0 = this.now();
     w.tick++;
-    stepWorld(w, this.data, this.avgTickMs() > this.data.runtime.tick.budgetMs);
+    const degraded = this.avgTickMs() > this.data.runtime.tick.budgetMs;
+    if (degraded) this.everDegraded = true;
+    stepWorld(w, this.data, degraded);
     const { degradeWindowTicks } = this.data.runtime.schedule;
     this.recentTickMs.push(this.now() - t0);
     if (this.recentTickMs.length > degradeWindowTicks) this.recentTickMs.shift();

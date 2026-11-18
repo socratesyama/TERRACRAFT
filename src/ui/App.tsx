@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ShareState } from '../core/share';
 import type { DataBundle } from '../core/data/schema';
 import { SimulationClient, type Snapshot } from '../worker/client';
 import type { Op } from '../worker/protocol';
@@ -7,6 +8,7 @@ import { PauseIcon, PlayIcon } from './Icon';
 import { BiomePanel, CivPanel, DevPanel, EventLog, LayerPanel, ScenarioPanel, StatsPanel, ToolPanel } from './panels';
 import { ComparePanel, ObservablesPanel, TracerPanel } from './insightPanels';
 import { DiplomacyPanel, NationPanel, TradePanel, WarPanel } from './nationPanels';
+import { SharePanel, useAutosave, useShareBoot } from './sharePanel';
 import { useUiStore, useWorldMirror } from './store';
 import { Viewport, type ViewportHandle } from './Viewport';
 
@@ -25,8 +27,37 @@ export function App({ data }: { data: DataBundle }) {
   const degraded = useWorldMirror((s) => s.degraded);
 
   // seed は scenarios.json の比較用 seed、グリッドは scale.json の既定（数値は data/ から）。
-  const seed = data.scenarios.comparison.defaultSeed;
-  const gridSize = data.scale.grid.defaultSize;
+  const [seed, setSeed] = useState(data.scenarios.comparison.defaultSeed);
+  const [gridSize, setGridSize] = useState<number>(data.scale.grid.defaultSize);
+  const initNonce = useUiStore((s) => s.initNonce);
+  /** 共有 URL・保存からの読み込み。次の init で一度だけ使う */
+  const pendingRef = useRef<{ ops: Op[]; fastForwardTo: number } | null>(null);
+  useShareBoot(data);
+  useAutosave(data, getClient);
+  const loadShared = useCallback(
+    (st: ShareState, fastForward: boolean) => {
+      const ui = useUiStore.getState();
+      pendingRef.current = { ops: fastForward ? st.ops : st.ops.filter((o) => o.tick === 0), fastForwardTo: fastForward ? st.tick : 0 };
+      const peace = [...st.ops].reverse().find((o) => o.t === 'param' && o.key === 'peaceMode');
+      ui.setScenarioId(st.scenarioId);
+      ui.setNationMode(st.nations);
+      ui.setPeaceMode(peace && peace.t === 'param' ? peace.value >= 0.5 : false);
+      setSeed(st.seed);
+      setGridSize(st.size);
+      ui.bumpInit();
+    },
+    [],
+  );
+  const screenshot = useCallback(() => {
+    void handleRef.current?.screenshot().then((b) => {
+      if (!b) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b);
+      a.download = 'terracraft.png';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+  }, []);
 
   // Worker の起動と接続。
   useEffect(() => {
@@ -37,7 +68,10 @@ export function App({ data }: { data: DataBundle }) {
 
     client.onReady = () => setWorkerStatus('ready');
     client.onCompare = (r) => useUiStore.getState().setCompare(r);
-    client.onProgress = (done, total) => useUiStore.getState().setCompareProgress(done / total);
+    client.onProgress = (done, total, what) => {
+      if (what === 'replay') useUiStore.getState().setReplayProgress(done >= total ? null : done / total);
+      else useUiStore.getState().setCompareProgress(done / total);
+    };
     client.onNotice = (m) => useUiStore.getState().setNotice(m);
     client.onDryRun = (mask) => handleRef.current?.setPreview(mask);
     client.onError = (message) => setWorkerStatus('error', message);
@@ -60,13 +94,16 @@ export function App({ data }: { data: DataBundle }) {
     };
     setWorkerStatus('connecting');
     useUiStore.getState().clearEvents();
-    client.send({ type: 'init', scenarioId, seed, size: gridSize, nations: nationMode });
+    const pending = pendingRef.current;
+    pendingRef.current = null;
+    client.send({ type: 'init', scenarioId, seed, size: gridSize, nations: nationMode, ops: pending?.ops, fastForwardTo: pending?.fastForwardTo });
+    useUiStore.getState().setReplayProgress(null);
 
     return () => {
       client.terminate();
       clientRef.current = null;
     };
-  }, [data, seed, gridSize, scenarioId, nationMode, setWorkerStatus]);
+  }, [data, seed, gridSize, scenarioId, nationMode, initNonce, setWorkerStatus]);
 
   const sendOp = useCallback((op: Op) => {
     useUiStore.getState().setNotice(null);
@@ -130,6 +167,7 @@ export function App({ data }: { data: DataBundle }) {
         />
         <aside className="side">
           <ScenarioPanel data={data} />
+          <SharePanel data={data} client={getClient} onLoad={loadShared} onScreenshot={screenshot} />
           <ToolPanel
             data={data}
             onUndo={undo}

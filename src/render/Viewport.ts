@@ -366,6 +366,12 @@ export class TerrainViewport {
     this.renderer.render(this.scene, this.camera);
   };
 
+  /** 描画した直後に toBlob する（描画バッファが有効なうちに取る §14.4） */
+  screenshot(): Promise<Blob | null> {
+    this.renderer.render(this.scene, this.camera);
+    return new Promise((resolve) => this.renderer.domElement.toBlob((b) => resolve(b), 'image/png'));
+  }
+
   get canvas(): HTMLCanvasElement {
     return this.renderer.domElement;
   }

@@ -172,5 +172,31 @@
       "vegetation": 2,
       "_doc": "変化マップの感度。標高の変化 1/height、植生の変化 1/vegetation で飽和（見た目の定数）"
     }
+  },
+  "share": {
+    "_doc": "URL 共有（§14）。世界の配列は保存せず、再現に必要な入力（シナリオ・seed・Op ログ）だけを保存する",
+    "formatVersion": 1,
+    "maxChars": {
+      "value": 8000,
+      "_doc": "URL ハッシュ部の上限文字数（§14.2）"
+    },
+    "softChars": {
+      "value": 7500,
+      "_doc": "これを超えたら警告して、JSON 書き出しを案内する"
+    },
+    "opScale": {
+      "value": 32768,
+      "_doc": "Op の小数（座標・半径・量）を整数に丸める倍率。操作の適用時にも同じ丸めをするので、共有した世界と開いた世界は一致する"
+    },
+    "maxFastForwardTicks": {
+      "value": 300,
+      "_doc": "「現在の時点」で開くときの早送りの上限（§14.3）"
+    },
+    "progressEveryTicks": 10,
+    "autosave": {
+      "storageKey": "terracraft.autosave",
+      "debounceMs": 2000,
+      "manualSlots": 3
+    }
   }
 }

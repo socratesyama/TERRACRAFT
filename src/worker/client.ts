@@ -25,8 +25,9 @@ export class SimulationClient {
   onDryRun: (lakeMask: Uint8Array) => void = () => {};
   /** 失敗しても続けられる通知（外交の操作が今はできない、など） */
   onCompare: (r: CompareResult) => void = () => {};
-  onProgress: (done: number, total: number) => void = () => {};
+  onProgress: (done: number, total: number, what?: 'compare' | 'replay') => void = () => {};
   onNotice: (message: string) => void = () => {};
+  onState: (s: Extract<FromWorker, { type: 'state' }>) => void = () => {};
 
   constructor() {
     this.worker = new Worker(new URL('./simulation.worker.ts', import.meta.url), {
@@ -58,7 +59,10 @@ export class SimulationClient {
           this.onCompare(m.result);
           break;
         case 'progress':
-          this.onProgress(m.done, m.total);
+          this.onProgress(m.done, m.total, m.what);
+          break;
+        case 'state':
+          this.onState(m);
           break;
         case 'notice':
           this.onNotice(m.message);

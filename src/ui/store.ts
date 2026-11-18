@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { CompareResult } from '../core/compare';
+import type { ShareState } from '../core/share';
 import type { DiploState, Nation, ObsState, WorldEvent } from '../core/world';
 
 export type ToolId = 'view' | 'mountain' | 'dig' | 'afforest' | 'deforest' | 'dam' | 'fill';
@@ -41,6 +42,17 @@ interface UiState {
   /** Worker からの通知（外交の操作が今はできない、など） */
   notice: string | null;
   setNotice: (m: string | null) => void;
+  /** 共有 URL で開いたとき、「設計図のみ / 現在の時点」を選ばせるための提案 */
+  shareOffer: ShareState | null;
+  setShareOffer: (s: ShareState | null) => void;
+  shareMessage: string | null;
+  setShareMessage: (m: string | null) => void;
+  /** 共有 URL の再生（早送り）の進み 0〜1 */
+  replayProgress: number | null;
+  setReplayProgress: (p: number | null) => void;
+  /** Worker を作り直す合図（同じシナリオのまま読み込み直すとき） */
+  initNonce: number;
+  bumpInit: () => void;
   playing: boolean;
   speed: number;
   workerStatus: 'connecting' | 'ready' | 'error';
@@ -82,6 +94,14 @@ export const useUiStore = create<UiState>()((set) => ({
       return { events: [...kept, ...add].slice(-400) };
     }),
   clearEvents: () => set({ events: [] }),
+  shareOffer: null,
+  setShareOffer: (shareOffer) => set({ shareOffer }),
+  shareMessage: null,
+  setShareMessage: (shareMessage) => set({ shareMessage }),
+  replayProgress: null,
+  setReplayProgress: (replayProgress) => set({ replayProgress }),
+  initNonce: 0,
+  bumpInit: () => set((st) => ({ initNonce: st.initNonce + 1, playing: false })),
   playing: false,
   speed: 1,
   workerStatus: 'connecting',

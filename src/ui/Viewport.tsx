@@ -10,12 +10,13 @@ import { useUiStore, type LayerId } from './store';
 export interface ViewportHandle {
   focusOn: (x: number, y: number) => void;
   setPreview: (mask: Uint8Array | null) => void;
+  screenshot: () => Promise<Blob | null>;
 }
 
 interface Props
   extends Omit<
     ViewportOptions,
-    'biomeColors' | 'bareColor' | 'temperatureMinC' | 'temperatureMaxC' | 'civColors' | 'settlementHeights'
+    'biomeColors' | 'bareColor' | 'temperatureMinC' | 'temperatureMaxC' | 'civColors' | 'settlementHeights' | 'nationColors'
   > {
   data: DataBundle;
   /** スナップショットの受け口を登録する（描画後に必ず release するのは App 側） */
@@ -69,7 +70,7 @@ export function Viewport({ register, data, client, handleRef, ...opts }: Props) 
       });
       vpRef.current = viewport;
       const vp = viewport;
-      handleRef.current = { focusOn: (x, y) => vp.focusOn(x, y), setPreview: (m) => vp.setPreview(m) };
+      handleRef.current = { focusOn: (x, y) => vp.focusOn(x, y), setPreview: (m) => vp.setPreview(m), screenshot: () => vp.screenshot() };
       register((s) => {
         if (s.pack.size * s.pack.size * PACK_CHANNELS * PACK_TEXTURES * 4 === s.pack.data.byteLength) {
           vp.setData(new Float32Array(s.pack.data));

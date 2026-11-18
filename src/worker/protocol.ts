@@ -24,6 +24,8 @@ export type ToWorker =
   | { type: 'play'; speed: number }
   | { type: 'pause' }
   | { type: 'step'; n: number }
+  /** 共有用に、いまの入力（シナリオ・seed・Op ログ・tick）を返してもらう */
+  | { type: 'exportState' }
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'rewind'; toOpIndex: number }
@@ -70,9 +72,10 @@ export type FromWorker =
       /** 観測量の時系列。点が増えたときだけ付く（毎回は送らない） */
       obs?: ObsState;
     }
+  | { type: 'state'; scenarioId: string; seed: number; size: number; nations: boolean; ops: Op[]; tick: number; exact: boolean }
   | { type: 'notice'; message: string }
   | { type: 'compareResult'; result: CompareResult }
-  | { type: 'progress'; done: number; total: number }
+  | { type: 'progress'; done: number; total: number; what?: 'compare' | 'replay' }
   | { type: 'dryRunResult'; lakeMask: Uint8Array }
   | { type: 'error'; message: string };
 
