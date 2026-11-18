@@ -122,7 +122,8 @@
       "forestShare": 0.4,
       "vegetation": 0.5,
       "disasterLossHalfLife": 10,
-      "tradeShare": 0.2
+      "tradeShare": 0.2,
+      "importDependencyPenalty": 0.5
     },
     "historyEveryTicks": 8,
     "historyMax": 120

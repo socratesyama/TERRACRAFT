@@ -82,6 +82,10 @@ export interface CivState {
   recentOps: { id: number; tick: number; x?: number; y?: number }[];
   /** 直近の豪雨の tick（戦争の天候補正に使う）。無ければ -1 */
   stormTick: number;
+  /** 築いたダム（破壊工作・決壊の対象）。orig は築く前の標高 */
+  dams: { id: number; x: number; y: number; cells: number[]; orig: number[]; tick: number }[];
+  /** 次の tick に起こす決壊の洪水 */
+  breach: { surge: number; why: string } | null;
 }
 
 export type Res = 'food' | 'wood' | 'ore';
@@ -109,6 +113,7 @@ export interface Nation {
   lossAcc: number; // この tick の災害による人口損失（洪水・飢饉）
   lossEma: number;
   tradeValue: number; // 直近の貿易額の指数平均
+  foodImport: number; // 食料の輸入量（1 tick あたり、指数平均）
   di: number;
   diParts: number[]; // DI_KEYS の順、0〜1
   diHistory: number[];
@@ -129,6 +134,9 @@ export interface Relation {
   lastTradeTick: number;
   /** AI がこの tick まで、この相手へ貿易・不可侵の提案をしない（断られた直後の連投を防ぐ） */
   proposeCooldown: number;
+  /** a が b に禁輸している / b が a に禁輸している */
+  embargoAB: boolean;
+  embargoBA: boolean;
 }
 
 export interface Proposal {
@@ -187,6 +195,8 @@ export interface DiploState {
   inflowEma: number[];
   basePotential: number;
   lastTrade: { tick: number; flows: TradeFlow[]; loss: number };
+  /** 戦闘の統計（地形ごとの前線セル数と占領セル数。AI の統計検証用） */
+  battle: { front: Record<string, number>; taken: Record<string, number>; riverFront: number; riverTaken: number; wars: number; capitalFalls: number; aggressorWins: number; decided: number; ended: number; durationSum: number; durationMax: number; warTicks: number };
 }
 
 export interface WorldEvent {
@@ -251,7 +261,7 @@ export interface AllocOptions {
 }
 
 export function emptyDiplo(): DiploState {
-  return { nextId: 1, relations: [], proposals: [], wars: [], inflowEma: [], basePotential: 0, lastTrade: { tick: 0, flows: [], loss: 0 } };
+  return { nextId: 1, relations: [], proposals: [], wars: [], inflowEma: [], basePotential: 0, lastTrade: { tick: 0, flows: [], loss: 0 }, battle: { front: {}, taken: {}, riverFront: 0, riverTaken: 0, wars: 0, capitalFalls: 0, aggressorWins: 0, decided: 0, ended: 0, durationSum: 0, durationMax: 0, warTicks: 0 } };
 }
 
 export function allocWorld(data: DataBundle, opts: AllocOptions): World {
@@ -310,7 +320,7 @@ export function allocWorld(data: DataBundle, opts: AllocOptions): World {
     dirty: Dirty.Height | Dirty.Climate | Dirty.Water,
     events: [],
     settlements: [],
-    civ: { nextId: 1, roadQueue: [], roadDone: [], baseline: null, lastEmit: {}, eventSeq: 0, recentOps: [], stormTick: -1 },
+    civ: { nextId: 1, roadQueue: [], roadDone: [], baseline: null, lastEmit: {}, eventSeq: 0, recentOps: [], stormTick: -1, dams: [], breach: null },
     nations: [],
     diplo: emptyDiplo(),
     obs: { ticks: [], values: {} },
@@ -339,10 +349,10 @@ export function hashWorld(w: World, quantizeScale: number): number {
 function hashNations(w: World, q: number): number {
   const flat: number[] = [];
   for (const n of w.nations) {
-    flat.push(n.id, n.capitalId, Math.round(n.stock.food * q) | 0, Math.round(n.stock.wood * q) | 0, Math.round(n.stock.ore * q) | 0, Math.round(n.stock.wealth * q) | 0, Math.round(n.army * q) | 0, Math.round(n.tech * q) | 0);
+    flat.push(n.id, n.capitalId, Math.round(n.stock.food * q) | 0, Math.round(n.stock.wood * q) | 0, Math.round(n.stock.ore * q) | 0, Math.round(n.stock.wealth * q) | 0, Math.round(n.army * q) | 0, Math.round(n.tech * q) | 0, Math.round(n.foodImport * q) | 0);
   }
   for (const r of w.diplo.relations) {
-    flat.push(r.a, r.b, Math.round(r.trust * q) | 0, ['peace', 'tension', 'war', 'truce'].indexOf(r.status), r.tradePactUntil, r.nonAggUntil);
+    flat.push(r.a, r.b, Math.round(r.trust * q) | 0, ['peace', 'tension', 'war', 'truce'].indexOf(r.status), r.tradePactUntil, r.nonAggUntil, (r.embargoAB ? 1 : 0) + (r.embargoBA ? 2 : 0));
   }
   for (const x of w.diplo.wars) flat.push(x.id, x.a, x.b, x.capturedByA, x.capturedByB);
   return hashInt32(Int32Array.from(flat));

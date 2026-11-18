@@ -1,7 +1,7 @@
 import { biomeKeys } from '../climate/climate';
 import type { DataBundle } from '../data/schema';
 import { emit } from '../events';
-import type { Relation, War, World } from '../world';
+import { Dirty, type Relation, type War, type World } from '../world';
 import { landQuantile, nat } from './economy';
 import { relationOf } from './territory';
 
@@ -112,6 +112,7 @@ export function declareWar(w: World, data: DataBundle, a: number, b: number, cas
     startCellsA: cells(a), startCellsB: cells(b), capturedByA: 0, capturedByB: 0, frontX: 0, frontY: 0, dirX: 0, dirY: 0, note: '',
   };
   w.diplo.wars.push(war);
+  w.diplo.battle.wars++;
   w.diplo.proposals = w.diplo.proposals.filter((p) => !(p.kind !== 'peace' && ((p.from === a && p.to === b) || (p.from === b && p.to === a))));
   A.mobTarget = 1;
   B.mobTarget = 1;
@@ -129,7 +130,7 @@ export function endWar(w: World, data: DataBundle, war: War, reason: string): vo
   r.tensionTicks = 0;
   r.trust = Math.max(r.trust, data.nations.diplomacy.trust.min / 2);
   // 賠償: 領土を多く失った側（首都陥落なら必ず）が富の indemnityShare を払う
-  const loserIsB = war.capturedByA >= war.capturedByB;
+  const loserIsB = war.capturedByA > war.capturedByB;
   const net = Math.abs(war.capturedByA - war.capturedByB);
   let line = '';
   if (net > 0) {
@@ -139,6 +140,15 @@ export function endWar(w: World, data: DataBundle, war: War, reason: string): vo
     L.stock.wealth -= pay;
     Wn.stock.wealth += pay;
     line = `、${L.name}が賠償 ${pay.toFixed(1)} を払う`;
+  }
+  const dur = w.tick - war.startTick;
+  w.diplo.battle.ended++;
+  w.diplo.battle.durationSum += dur;
+  w.diplo.battle.durationMax = Math.max(w.diplo.battle.durationMax, dur);
+  // 統計: 領土の動きで勝敗が決まった戦争のうち、攻撃側が勝った割合
+  if (net > 0) {
+    w.diplo.battle.decided++;
+    if (loserIsB) w.diplo.battle.aggressorWins++;
   }
   w.diplo.wars = w.diplo.wars.filter((x) => x.id !== war.id);
   for (const n of [A, B]) if (!w.diplo.wars.some((x) => x.a === n.id || x.b === n.id)) n.mobTarget = 0.3;
@@ -173,6 +183,8 @@ export function warStep(w: World, data: DataBundle): void {
   const rv = data.hydrology.river.flowThreshold;
   const own = w.primary.owner;
   const mountainH = landQuantile(w, e.mountainHeightQuantile);
+  const bt = w.diplo.battle;
+  if (w.diplo.wars.length > 0) bt.warTicks++;
   for (const war of w.diplo.wars.slice()) {
     if (w.params.peaceMode) {
       endWar(w, data, war, '平和モードで停戦');
@@ -200,7 +212,7 @@ export function warStep(w: World, data: DataBundle): void {
     let sx = 0;
     let sy = 0;
     const terr: Record<string, number> = {};
-    const cand: { c: number; ratio: number }[] = [];
+    const cand: { c: number; ratio: number; terr: Terrain; river: boolean }[] = [];
     const F = Math.max(1, front.length);
     for (const f of front) {
       const d = defenseAt(w, data, f.c, keys, mountainH);
@@ -210,7 +222,9 @@ export function warStep(w: World, data: DataBundle): void {
       const att = (river ? data.war.terrain.riverCrossing.attackerPenalty : 1) * (stormy ? data.war.terrain.weather.rainAttackerPenalty : 1) * supply;
       const pA = ((A.army * eq(A)) / F) * att;
       const pD = ((B.army * eq(B)) / F) * d.mult;
-      cand.push({ c: f.c, ratio: pD > 0 ? pA / pD : 99 });
+      cand.push({ c: f.c, ratio: pD > 0 ? pA / pD : 99, terr: d.terrain, river });
+      bt.front[d.terrain] = (bt.front[d.terrain] ?? 0) + 1;
+      if (river) bt.riverFront++;
       defSum += d.mult;
       attSum += att;
       terr[d.terrain] = (terr[d.terrain] ?? 0) + 1;
@@ -255,6 +269,8 @@ export function warStep(w: World, data: DataBundle): void {
       const keep = w.settlements.filter((s) => s.nationId === war.b && !here.includes(s));
       if (here.length > 0 && keep.length === 0) continue; // 最後の集落は奪わない
       own[c.c] = war.a;
+      bt.taken[c.terr] = (bt.taken[c.terr] ?? 0) + 1;
+      if (c.river) bt.riverTaken++;
       for (const s of here) {
         s.nationId = war.a;
         s.pop *= 1 - e.surrenderPopLoss;
@@ -266,6 +282,51 @@ export function warStep(w: World, data: DataBundle): void {
     war.capturedByA += taken;
     B.cells -= taken;
     A.cells += taken;
+    // 反攻: B も、A の領土のうち B と接するセルへ押し返す（同じ規則。立場が逆で、地形は A の側のもの）
+    let counter = 0;
+    if (!capitalFell) {
+      const capB = w.settlements.find((c) => c.id === B.capitalId);
+      const cands: { c: number; ratio: number; terr: Terrain; river: boolean }[] = [];
+      for (let i = 0; i < n * n; i++) {
+        if (own[i] !== war.a) continue;
+        const x = i % n;
+        const y = (i / n) | 0;
+        const nb = [x > 0 ? i - 1 : -1, x < n - 1 ? i + 1 : -1, y > 0 ? i - n : -1, y < n - 1 ? i + n : -1];
+        const from = nb.find((m) => m >= 0 && own[m] === war.b);
+        if (from === undefined) continue;
+        const d = defenseAt(w, data, i, keys, mountainH);
+        const dist = capB ? Math.hypot((i % n) - capB.x, ((i / n) | 0) - capB.y) : 0;
+        const supply = dist > reach ? 0 : Math.max(e.supplyMin, 1 - decay * dist);
+        const river = w.derived.flowAcc[i]! >= rv || w.derived.flowAcc[from]! >= rv;
+        const att = (river ? data.war.terrain.riverCrossing.attackerPenalty : 1) * (stormy ? data.war.terrain.weather.rainAttackerPenalty : 1) * supply;
+        const pB = ((B.army * eq(B)) / F) * att;
+        const pA = ((A.army * eq(A)) / F) * d.mult;
+        cands.push({ c: i, ratio: pA > 0 ? pB / pA : 99, terr: d.terrain, river });
+      }
+      cands.sort((x, y) => y.ratio - x.ratio || x.c - y.c);
+      let ccap = Math.max(1, Math.ceil(A.cells * e.maxCapturePerTickFraction));
+      const floorA = Math.ceil(A.baseCells * e.minSurvivingTerritoryShare);
+      for (const c of cands) {
+        if (ccap <= 0 || c.ratio < e.captureRatio) break;
+        if (A.cells - counter <= floorA) break;
+        const here = w.settlements.filter((s) => s.y * n + s.x === c.c);
+        const keep = w.settlements.filter((s) => s.nationId === war.a && !here.includes(s));
+        if (here.length > 0 && keep.length === 0) continue;
+        own[c.c] = war.b;
+        bt.taken[c.terr] = (bt.taken[c.terr] ?? 0) + 1;
+        if (c.river) bt.riverTaken++;
+        for (const s of here) {
+          s.nationId = war.b;
+          s.pop *= 1 - e.surrenderPopLoss;
+        }
+        counter++;
+        ccap--;
+      }
+      war.capturedByB += counter;
+      A.cells -= counter;
+      B.cells += counter;
+      if (counter > 0) emit(w, data, 'war', `${B.name}が反攻し、${A.name}の ${counter} セルを取り返した`, Math.round(war.frontX), Math.round(war.frontY), { dedupe: true });
+    }
     war.frontX = sx / F;
     war.frontY = sy / F;
     const cs = capA ? capA : { x: war.frontX, y: war.frontY };
@@ -283,6 +344,7 @@ export function warStep(w: World, data: DataBundle): void {
     war.wearA = data.war.morale.warWeariness.perYear * dur + data.war.morale.casualtyShock * (war.lossA / Math.max(1, A.pop + war.lossA));
     war.wearB = data.war.morale.warWeariness.perYear * dur + data.war.morale.casualtyShock * (war.lossB / Math.max(1, B.pop + war.lossB));
     if (capitalFell) {
+      w.diplo.battle.capitalFalls++;
       emit(w, data, 'war', `${B.name}の首都が陥落した`, Math.round(war.frontX), Math.round(war.frontY));
       relocateCapital(w, data, war.b);
       endWar(w, data, war, '首都陥落');
@@ -301,4 +363,27 @@ export function warStep(w: World, data: DataBundle): void {
     }
   }
   for (const nn of w.nations) relocateCapital(w, data, nn.id);
+}
+
+/**
+ * ダムの破壊工作（§22.5）。交戦中の相手の領土にあるダムを決壊させる。標高を築く前に戻し、次の tick に洪水が下流へ届く。
+ * 戻り値はメッセージ。できないときは RangeError。
+ */
+export function sabotageDam(w: World, data: DataBundle, by: number, target: number): string {
+  const r = relationOf(w, by, target);
+  if (r.status !== 'war') throw new RangeError('交戦中の国のダムだけ決壊させられる');
+  const n = w.size;
+  const dam = w.civ.dams.find((d) => w.primary.owner[d.y * n + d.x] === target);
+  if (!dam) throw new RangeError(`${nat(w, target).name}の領土にダムがありません`);
+  const me = nat(w, by);
+  me.stock.wealth *= 1 - E(data).sabotageCost;
+  dam.cells.forEach((c, k) => {
+    w.primary.height[c] = Math.min(w.primary.height[c]!, dam.orig[k]!);
+  });
+  w.civ.dams = w.civ.dams.filter((d) => d.id !== dam.id);
+  w.dirty |= Dirty.Height | Dirty.Water; // refreshDirty が次の tick の頭で再計算する
+  w.civ.breach = { surge: data.disasters.flood.surgeMax, why: `${nat(w, target).name}のダムが決壊` };
+  const msg = `${me.name}が${nat(w, target).name}のダムを決壊させた`;
+  emit(w, data, 'war', msg, dam.x, dam.y);
+  return msg;
 }

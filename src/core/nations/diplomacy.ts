@@ -1,15 +1,16 @@
 import type { DataBundle } from '../data/schema';
 import { emit } from '../events';
 import type { Proposal, Relation, World } from '../world';
-import { isAtWar, nat } from './economy';
+import { foodDependency, isAtWar, nat } from './economy';
 import { relationOf } from './territory';
-import { declareWar, endWar, warScore } from './war';
+import { declareWar, endWar, sabotageDam, warScore } from './war';
 
 /**
  * 外交（§22.2）。信頼値・関係の状態・協定・提案、そして AI（Utility AI、1 tick に 1 国）。
  * 信頼値は 貿易の継続（＋）、国境の摩擦（−）、上流の取水（−）、贈り物（＋）で動く。
  */
 
+const isStatus = (r: Relation, st: Relation['status']): boolean => r.status === st;
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
 
 /** 国境の長さ（4 近傍で国が変わるセル対の数）と、川が国境を越えて下流へ運ぶ水（流量）の行列 */
@@ -184,6 +185,18 @@ export function aiStep(w: World, data: DataBundle): void {
     if (r.status === 'tension' && r.trust < 0 && w.nations.length > 0) {
       acts.push({ u: 0.4 * W(me, data, 'conservation'), text: `${o.name}へ贈り物（関係の修復）`, run: () => { r.trust = clamp(r.trust + data.nations.diplomacy.trust.giftGain, -100, 100); me.stock.wealth *= 0.9; } });
     }
+    // 禁輸: 緊張している相手が食料を輸入に頼っているほど効く。関係が戻れば解く
+    const flagMe = me.id === r.a ? 'embargoAB' : 'embargoBA';
+    if (r[flagMe]) {
+      if (r.status === 'peace' && r.trust >= ai.tensionRecoverTrust) acts.push({ u: 1, text: `${o.name}への禁輸を解除`, run: () => void setEmbargo(w, data, me.id, o.id, false) });
+    } else if (r.status === 'tension') {
+      const u = (foodDependency(o) * 10 + 0.5) * W(me, data, 'expansion');
+      acts.push({ u: u / ai.embargoThreshold, text: `${o.name}に禁輸（食料の輸入依存度 ${(foodDependency(o) * 100).toFixed(0)}%）`, run: () => void setEmbargo(w, data, me.id, o.id, true) });
+    }
+    // 戦争中: 敵の領土にダムがあれば決壊させる（人間と同じ規則・同じ費用）
+    if (isStatus(r, 'war') && w.civ.dams.some((d) => w.primary.owner[d.y * w.size + d.x] === o.id)) {
+      acts.push({ u: 1.2, text: `${o.name}のダムを決壊`, run: () => void sabotageDam(w, data, me.id, o.id) });
+    }
     // 戦争: 緊張が前触れとして warWarningTicks 続き、期待利得が閾値を超えたとき（突然の宣戦はしない §22.5）
     if (r.status === 'tension' && r.tensionTicks >= ai.warWarningTicks && w.tick >= r.truceUntil + ai.warCooldownTicks && !w.params.peaceMode && !(ai.oneWarAtATime.value && (isAtWar(w, o.id) || isAtWar(w, me.id)))) {
       const sc = warScore(w, data, me.id, o.id, r);
@@ -193,7 +206,7 @@ export function aiStep(w: World, data: DataBundle): void {
   // 動員: 緊張している相手がいる間は高める
   const tense = others.some((o) => relationOf(w, me.id, o.id).status === 'tension');
   if (!isAtWar(w, me.id)) me.mobTarget = tense ? 0.6 : 0.3;
-  const best = acts.filter((a) => a.u >= 1 || a.text.includes('提案') || a.text.includes('贈り物')).sort((a, b) => b.u - a.u)[0];
+  const best = acts.filter((a) => a.u >= 1 || a.text.includes('提案') || a.text.includes('贈り物') || a.text.includes('禁輸')).sort((a, b) => b.u - a.u)[0];
   if (!best) {
     me.lastDecision = '';
     return;
@@ -202,8 +215,20 @@ export function aiStep(w: World, data: DataBundle): void {
   best.run();
 }
 
+/** 禁輸（交易路を止める）。受けた側の信頼値が下がる。解除は信頼を戻さない */
+export function setEmbargo(w: World, data: DataBundle, by: number, target: number, on: boolean): string {
+  const r = relationOf(w, by, target);
+  const flag = by === r.a ? 'embargoAB' : 'embargoBA';
+  if (r[flag] === on) throw new RangeError(on ? 'すでに禁輸しています' : '禁輸していません');
+  r[flag] = on;
+  const msg = on ? `${nat(w, by).name}が${nat(w, target).name}に禁輸した` : `${nat(w, by).name}が${nat(w, target).name}への禁輸を解いた`;
+  if (on) r.trust = clamp(r.trust + data.nations.diplomacy.trust.embargoDrop, data.nations.diplomacy.trust.min, data.nations.diplomacy.trust.max);
+  emit(w, data, 'diplomacy', msg);
+  return msg;
+}
+
 export type DiploOp =
-  | { t: 'diplo'; tick: number; action: 'proposeTrade' | 'proposeNonAggression' | 'gift' | 'declareWar' | 'proposePeace' | 'cancelPact'; to: number }
+  | { t: 'diplo'; tick: number; action: 'proposeTrade' | 'proposeNonAggression' | 'gift' | 'declareWar' | 'proposePeace' | 'cancelPact' | 'embargo' | 'liftEmbargo' | 'sabotage'; to: number }
   | { t: 'diplo'; tick: number; action: 'respond'; proposalId: number; accept: boolean }
   | { t: 'military'; tick: number; mobilization: number };
 
@@ -246,6 +271,12 @@ export function applyDiploOp(w: World, data: DataBundle, op: DiploOp): string {
       const why = declareWar(w, data, me, to, 'プレイヤーの宣戦');
       return why;
     }
+    case 'embargo':
+      return setEmbargo(w, data, me, to, true);
+    case 'liftEmbargo':
+      return setEmbargo(w, data, me, to, false);
+    case 'sabotage':
+      return sabotageDam(w, data, me, to);
     case 'proposePeace':
       if (r.status !== 'war') throw new RangeError('戦争中ではありません');
       propose(w, me, to, 'peace');

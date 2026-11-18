@@ -84,7 +84,7 @@ export function DiplomacyPanel({ data, send }: { data: DataBundle; send: Send })
   const mine = diplo.relations.filter((r) => r.a === PLAYER || r.b === PLAYER);
   const incoming = diplo.proposals.filter((p) => p.to === PLAYER);
   const kind = { trade: t('diplo.proposeTrade'), nonAggression: t('diplo.proposeNonAgg'), peace: t('diplo.peace') } as const;
-  const act = (action: 'proposeTrade' | 'proposeNonAggression' | 'gift' | 'declareWar' | 'proposePeace' | 'cancelPact', to: number) =>
+  const act = (action: 'proposeTrade' | 'proposeNonAggression' | 'gift' | 'declareWar' | 'proposePeace' | 'cancelPact' | 'embargo' | 'liftEmbargo' | 'sabotage', to: number) =>
     send({ t: 'diplo', tick: 0, action, to });
   return (
     <section className="panel" aria-labelledby="diplo-title">
@@ -107,12 +107,16 @@ export function DiplomacyPanel({ data, send }: { data: DataBundle; send: Send })
       {mine.map((r) => {
         const other = r.a === PLAYER ? r.b : r.a;
         const pct = ((r.trust + 100) / 200) * 100;
+        const embargoed = r.a === PLAYER ? r.embargoAB : r.embargoBA;
+        const embargoedMe = r.a === PLAYER ? r.embargoBA : r.embargoAB;
         return (
           <div key={other} className="rel-row" style={nationStyle(data, other)}>
             <strong>{nameOf(data, other)}</strong>
             <span className="tag" data-s={r.status}>{STATUS_JA[r.status]}</span>
             {r.tradePactUntil > 0 && <span className="tag">{t('diplo.pactTrade')}</span>}
             {r.nonAggUntil > 0 && <span className="tag">{t('diplo.pactNonAgg')}</span>}
+            {embargoed && <span className="tag">{t('diplo.embargoing')}</span>}
+            {embargoedMe && <span className="tag" data-s="tension">{t('diplo.embargoed')}</span>}
             <div className="di-bars">
               <span>{t('diplo.trust')} {r.trust.toFixed(0)}</span>
               <span className="bar" role="meter" aria-label={t('diplo.trust')} aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(r.trust)}>
@@ -121,7 +125,10 @@ export function DiplomacyPanel({ data, send }: { data: DataBundle; send: Send })
             </div>
             <div className="rel-actions">
               {r.status === 'war' ? (
-                <button type="button" className="choice" onClick={() => act('proposePeace', other)}>{t('diplo.peace')}</button>
+                <>
+                  <button type="button" className="choice" onClick={() => act('proposePeace', other)}>{t('diplo.peace')}</button>
+                  <button type="button" className="choice" onClick={() => act('sabotage', other)}>{t('diplo.sabotage')}</button>
+                </>
               ) : (
                 <>
                   <button type="button" className="choice" onClick={() => act('proposeTrade', other)}>{t('diplo.proposeTrade')}</button>
@@ -130,6 +137,9 @@ export function DiplomacyPanel({ data, send }: { data: DataBundle; send: Send })
                   {(r.tradePactUntil > 0 || r.nonAggUntil > 0) && (
                     <button type="button" className="choice" onClick={() => act('cancelPact', other)}>{t('diplo.cancel')}</button>
                   )}
+                  <button type="button" className="choice" onClick={() => act(embargoed ? 'liftEmbargo' : 'embargo', other)}>
+                    {embargoed ? t('diplo.liftEmbargo') : t('diplo.embargo')}
+                  </button>
                   <button type="button" className="choice" onClick={() => act('declareWar', other)}>{t('diplo.war')}</button>
                 </>
               )}

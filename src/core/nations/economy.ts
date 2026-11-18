@@ -132,6 +132,9 @@ export function econStep(w: World, data: DataBundle): void {
   computeDI(w, data, land);
 }
 
+/** 食料の輸入依存度（輸入量 / 消費量）。高いと禁輸が致命傷になる（§22.4） */
+export const foodDependency = (n: Nation): number => n.foodImport / Math.max(1, n.cons.food);
+
 export function isAtWar(w: World, id: number): boolean {
   return w.diplo.wars.some((x) => x.a === id || x.b === id);
 }
@@ -154,7 +157,7 @@ export function computeDI(w: World, data: DataBundle, land = landSummary(w, data
       c01(n.stock.wealth / Math.max(1, n.pop * b.wealthPerPop)),
       c01(land.road[k]! / cells / b.roadShare),
       (c01(forest / b.forestShare) + c01(land.veg[k]! / cells / b.vegetation)) / 2,
-      c01(1 - n.lossEma / Math.max(1, 0.1 * n.pop)),
+      c01(1 - n.lossEma / Math.max(1, 0.1 * n.pop)) * (1 - Math.min(1, foodDependency(n)) * b.importDependencyPenalty),
       c01(n.tech),
       c01(0.5 * trust + 0.5 * c01(n.tradeValue / Math.max(1, n.pop * b.tradeShare))),
     ];
@@ -179,6 +182,12 @@ export const priceOf = (data: DataBundle, n: Nation, r: Res): number => {
   const ratio = (reserve + 1e-6) / (n.stock[r] + 1e-6);
   return t.basePrice[r] * Math.min(t.priceClamp.max, Math.max(t.priceClamp.min, Math.sqrt(ratio)));
 };
+
+/** どちらかが相手に禁輸していれば、取引は止まる */
+export function isEmbargoed(w: World, a: number, b: number): boolean {
+  const r = relationOf(w, a, b);
+  return r.embargoAB || r.embargoBA;
+}
 
 export type Mode = TradeFlow['mode'];
 
@@ -222,6 +231,7 @@ export function tradeStep(w: World, data: DataBundle): void {
   if (w.nations.length < 2 || w.tick % t.market.tradeInterval !== 0) return;
   const flows: TradeFlow[] = [];
   let lossTotal = 0;
+  const foodIn = new Array<number>(w.nations.length).fill(0);
   const tc = t.transportCost;
   for (const r of RESOURCES) {
     for (const ex of w.nations) {
@@ -229,7 +239,7 @@ export function tradeStep(w: World, data: DataBundle): void {
       const reserveEx = reserveOf(data, ex.cons[r]);
       let supply = ex.stock[r] - reserveEx;
       if (supply <= t.minFlow.value) continue;
-      const partners = w.nations.filter((o) => o !== ex && rel0(o).tradePactUntil > w.tick && rel0(o).status !== 'war' && o.stock[r] < reserveOf(data, o.cons[r]));
+      const partners = w.nations.filter((o) => o !== ex && rel0(o).tradePactUntil > w.tick && rel0(o).status !== 'war' && !isEmbargoed(w, ex.id, o.id) && o.stock[r] < reserveOf(data, o.cons[r]));
       if (partners.length === 0) continue;
       const pe = priceOf(data, ex, r);
       const cand = partners
@@ -265,10 +275,13 @@ export function tradeStep(w: World, data: DataBundle): void {
         supply -= q;
         lossTotal += q - got;
         relationOf(w, ex.id, c.o.id).lastTradeTick = w.tick;
+        if (r === 'food') foodIn[c.o.id - 1]! += got;
         flows.push({ from: ex.id, to: c.o.id, res: r, sent: q, received: got, price, mode: c.tm.mode });
       }
     }
   }
+  // 輸入依存度の元: 食料の輸入量（1 tick あたり）の指数平均。輸入が無い国も 0 を混ぜる
+  for (const n of w.nations) n.foodImport += (foodIn[n.id - 1]! / t.market.tradeInterval - n.foodImport) * 0.5;
   w.diplo.lastTrade = { tick: w.tick, flows, loss: lossTotal };
   if (flows.length > 0) {
     const f = flows.reduce((a, x) => (x.sent * x.price > a.sent * a.price ? x : a));

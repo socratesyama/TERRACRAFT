@@ -1,5 +1,5 @@
 import type { DataBundle } from './data/schema';
-import { landSummary } from './nations/economy';
+import { foodDependency, landSummary } from './nations/economy';
 import type { World } from './world';
 
 /**
@@ -40,6 +40,7 @@ export const METRICS: readonly MetricDef[] = [
   { id: 'famine', scope: 'nation', total: 'mean', value: (w, _d, id) => w.nations[id - 1]!.famine },
   { id: 'tradeVolume', scope: 'nation', total: 'sum', value: (w, _d, id) => w.nations[id - 1]!.tradeValue },
   { id: 'militaryCapacity', scope: 'nation', total: 'sum', value: (w, _d, id) => w.nations[id - 1]!.army },
+  { id: 'foodImportDependency', scope: 'nation', total: 'mean', value: (w, _d, id) => foodDependency(w.nations[id - 1]!) },
   { id: 'treasury', scope: 'nation', total: 'sum', value: (w, _d, id) => w.nations[id - 1]!.stock.wealth },
   { id: 'technologyLevel', scope: 'nation', total: 'mean', value: (w, _d, id) => w.nations[id - 1]!.tech },
   { id: 'forestCover', scope: 'nation', total: 'mean', value: (_w, _d, id, land) => land.forest[id - 1]! / Math.max(1, land.cells[id - 1]!) },

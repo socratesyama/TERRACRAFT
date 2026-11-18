@@ -4,7 +4,7 @@ import { econStep, initEconomy, nationsKcMod, tradeStep } from './nations/econom
 import { setupNations } from './nations/territory';
 import { armyStep, warStep } from './nations/war';
 import { computeHand } from './civ/hand';
-import { landslideStep, stormStep } from './civ/disasters';
+import { flood, landslideStep, stormStep } from './civ/disasters';
 import { resetRoads, roadStep } from './civ/roads';
 import { computeCatchments, growthStep, rasterizeCiv, spawnStep } from './civ/settlements';
 import { detect } from './events';
@@ -191,6 +191,11 @@ export function refreshDirty(w: World, data: DataBundle): void {
 export function stepWorld(w: World, data: DataBundle, degraded: boolean): void {
   refreshDirty(w, data);
   stepClimate(w, data, degraded);
+  if (w.civ.breach) {
+    // ダムの決壊（破壊工作）: 標高の変更を反映した水文で、下流に洪水が届く
+    flood(w, data, w.civ.breach.surge, w.civ.breach.why);
+    w.civ.breach = null;
+  }
   const rng = (salt: number) => createRng(deriveSeed(w.seed, w.tick * 16 + salt));
   stormStep(w, data, rng(1));
   landslideStep(w, data, rng(2));

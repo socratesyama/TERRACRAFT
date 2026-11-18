@@ -114,14 +114,21 @@ function applyDam(w: World, op: Extract<Op, { t: 'dam' }>): { x: number; y: numb
     to++;
   }
   let cells = 0;
+  const cs: number[] = [];
+  const orig: number[] = [];
   for (let k = from; k <= to; k++) {
     const c = cellAt(k);
     if (c >= 0 && h[c]! < wall) {
+      cs.push(c);
+      orig.push(h[c]!);
       h[c] = Math.min(1, wall);
       cells++;
     }
   }
-  return { x: Math.round((ax + bx) / 2), y: Math.round((ay + by) / 2), cells };
+  const mx = Math.round((ax + bx) / 2);
+  const my = Math.round((ay + by) / 2);
+  if (cells > 0) w.civ.dams.push({ id: w.civ.nextId++, x: mx, y: my, cells: cs, orig, tick: w.tick });
+  return { x: mx, y: my, cells };
 }
 
 /** Op を世界へ適用する。副作用は一次状態の変更と dirty フラグだけ（再計算は呼び出し側）。 */

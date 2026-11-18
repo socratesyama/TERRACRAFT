@@ -112,6 +112,19 @@
     "terrainDoc": "地形の判定: 勾配（rise/run）が rollingHillsSlope 以上で丘陵、mountainSlope 以上または標高が陸の上位 (1−mountainHeightQuantile) で山地、森林バイオームで森、湿地バイオームで湿原、町以上の集落で市街・要塞",
     "oreUsePerArmyPerTick": 0.01,
     "mountainHeightQuantile": 0.9,
-    "minSurvivingTerritoryShareDoc": "国の初期の領土に対する割合。何度戦争になっても、これを下回るまでは奪われない（国は滅ぼさない）"
+    "minSurvivingTerritoryShareDoc": "国の初期の領土に対する割合。何度戦争になっても、これを下回るまでは奪われない（国は滅ぼさない）",
+    "sabotageCost": 0.05,
+    "sabotageCostDoc": "破壊工作の費用（富の割合）。決壊の洪水は disasters.json flood.surgeMax の倍率"
+  },
+  "balance": {
+    "_doc": "AI だけを走らせたときの統計の目標（§22.11）。計画書に数値は無く、設計上の出発点。tests/m7 と balance で検査する",
+    "minWarsPer100Years": 0,
+    "maxWarsPer100Years": 60,
+    "maxCapitalFallShare": 0.5,
+    "aggressorWinShareRange": [
+      0.1,
+      0.9
+    ],
+    "requireDefenseAdvantage": true
   }
 }

@@ -226,6 +226,7 @@ export function setupNations(w: World, data: DataBundle): boolean {
       lossAcc: 0,
       lossEma: 0,
       tradeValue: 0,
+      foodImport: 0,
       di: 0,
       diParts: [],
       diHistory: [],
@@ -237,7 +238,7 @@ export function setupNations(w: World, data: DataBundle): boolean {
     for (let b = a + 1; b <= w.nations.length; b++) {
       w.diplo.relations.push({
         a, b, trust: data.nations.diplomacy.trust.initial, status: 'peace', tensionTicks: 0, truceUntil: 0,
-        tradePactUntil: 0, nonAggUntil: 0, border: 0, grievance: '', lastTradeTick: -1, proposeCooldown: 0,
+        tradePactUntil: 0, nonAggUntil: 0, border: 0, grievance: '', lastTradeTick: -1, proposeCooldown: 0, embargoAB: false, embargoBA: false,
       });
     }
   }
