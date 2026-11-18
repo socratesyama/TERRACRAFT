@@ -1,4 +1,5 @@
 import {
+  ArrowHelper,
   BoxGeometry,
   BufferGeometry,
   Color,
@@ -22,7 +23,7 @@ import {
   WebGLRenderer,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { PACK_CHANNELS } from '../core/renderPack';
+import { PACK_CHANNELS, PACK_TEXTURES } from '../core/renderPack';
 import type { Settlement } from '../core/world';
 import { TERRAIN_FRAGMENT, TERRAIN_VERTEX, WATER_FRAGMENT, WATER_VERTEX } from './shaders';
 
@@ -41,14 +42,16 @@ export interface ViewportOptions {
   bareColor: string;
   /** runtime.json render.civColors */
   civColors: Record<string, string>;
+  /** 国の表示色。添字 = 国の ID（0 は無主地） */
+  nationColors: string[];
   /** 集落マーカーの高さ（セル）。村・町・都市・港町 */
   settlementHeights: number[];
   devicePixelRatioMax: number;
   devicePixelRatioMaxMobile: number;
 }
 
-/** 0: 地形, 1: 降水, 2: 気温, 3: 水分, 4: バイオーム, 5: 植生, 6: 洪水リスク */
-export type LayerIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+/** 0: 地形, 1: 降水, 2: 気温, 3: 水分, 4: バイオーム, 5: 植生, 6: 洪水リスク, 7: 領土, 8: 防御地形 */
+export type LayerIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 const MAX_BIOMES = 16;
 const MAX_MARKERS = 256;
 
@@ -87,10 +90,12 @@ export class TerrainViewport {
   private readonly markers: InstancedMesh;
   private readonly markerGeometry: BoxGeometry;
   private readonly markerMaterial: MeshBasicMaterial;
+  private readonly arrows: ArrowHelper[] = [];
   private readonly ring: Line;
   private readonly ringGeometry: BufferGeometry;
   private readonly ringMaterial: LineBasicMaterial;
   private readonly tierColors: Color[];
+  private readonly nationColors: string[];
   private readonly observer: ResizeObserver;
   private readonly size: number;
   private readonly heightScale: number;
@@ -124,8 +129,8 @@ export class TerrainViewport {
     this.controls.enableDamping = true;
     this.controls.target.set(0, opts.heightScale * 0.15, 0);
 
-    // データテクスチャ（renderPack.ts のレイアウト）: 1枚目 地形・水・川・降水、2枚目 気候・植生、3枚目 土地利用・人口・道路・洪水リスク
-    for (let k = 0; k < 3; k++) {
+    // データテクスチャ（renderPack.ts のレイアウト）: 1枚目 地形・水・川・降水、2枚目 気候・植生、3枚目 土地利用・人口・道路・洪水リスク、4枚目 国・前線・防御倍率
+    for (let k = 0; k < PACK_TEXTURES; k++) {
       const arr = new Float32Array(size * size * PACK_CHANNELS);
       if (k === 0) for (let i = 0; i < size * size; i++) arr[i * PACK_CHANNELS + 1] = -1;
       this.arrays.push(arr);
@@ -145,6 +150,9 @@ export class TerrainViewport {
       uData: { value: this.textures[0] },
       uData2: { value: this.textures[1] },
       uData3: { value: this.textures[2] },
+      uData4: { value: this.textures[3] },
+      uNation: { value: Array.from({ length: 9 }, (_, i) => vec3(opts.nationColors[i] ?? '#555555')) },
+      uFront: { value: vec3(opts.civColors.front ?? '#ff4d3a') },
       uPreview: { value: this.preview },
       uSize: { value: size },
       uHeightScale: { value: opts.heightScale },
@@ -184,6 +192,7 @@ export class TerrainViewport {
     this.scene.add(terrain, water);
 
     // 集落マーカー（村・町・都市・港町を色と高さで区別）
+    this.nationColors = opts.nationColors;
     this.tierColors = [opts.civColors.village!, opts.civColors.town!, opts.civColors.city!, opts.civColors.port!].map(
       (c) => new Color(c),
     );
@@ -213,7 +222,7 @@ export class TerrainViewport {
   /** Worker からのスナップショット（renderPack.ts のレイアウト）を反映する。呼び出し側はコピー後にバッファを返却できる。 */
   setData(pack: Float32Array): void {
     const half = this.arrays[0]!.length;
-    for (let k = 0; k < 3; k++) {
+    for (let k = 0; k < PACK_TEXTURES; k++) {
       this.arrays[k]!.set(pack.subarray(half * k, half * (k + 1)));
       this.textures[k]!.needsUpdate = true;
     }
@@ -239,6 +248,24 @@ export class TerrainViewport {
     this.markers.count = count;
     this.markers.instanceMatrix.needsUpdate = true;
     if (this.markers.instanceColor) this.markers.instanceColor.needsUpdate = true;
+  }
+
+  /** 戦争の前線の矢印（攻撃側 → 守備側）。色は攻撃側の国の色 */
+  setWars(wars: readonly { frontX: number; frontY: number; dirX: number; dirY: number; a: number }[]): void {
+    for (const a of this.arrows) {
+      this.scene.remove(a);
+      a.dispose();
+    }
+    this.arrows.length = 0;
+    for (const war of wars) {
+      const gy = this.heightAt(Math.round(war.frontX), Math.round(war.frontY)) + 4;
+      const origin = new Vector3(war.frontX - (this.size - 1) / 2 - war.dirX * 7, gy, -(war.frontY - (this.size - 1) / 2) + war.dirY * 7);
+      const dir = new Vector3(war.dirX, 0, -war.dirY).normalize();
+      const arrow = new ArrowHelper(dir, origin, 12, new Color(this.nationColors[war.a] ?? '#ff4d3a').getHex(), 4, 3);
+      arrow.renderOrder = 4;
+      this.arrows.push(arrow);
+      this.scene.add(arrow);
+    }
   }
 
   /** ダムの予測（新しくできる湖のマスク）を重ねる。null で消す */
@@ -351,6 +378,7 @@ export class TerrainViewport {
     this.geometry.dispose();
     this.terrainMaterial.dispose();
     this.waterMaterial.dispose();
+    for (const a of this.arrows) a.dispose();
     this.markerGeometry.dispose();
     this.markerMaterial.dispose();
     this.markers.dispose();

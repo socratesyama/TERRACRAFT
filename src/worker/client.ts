@@ -1,5 +1,5 @@
 import type { FromWorker, RenderPack, Stats, ToWorker } from './protocol';
-import type { Settlement, WorldEvent } from '../core/world';
+import type { DiploState, Nation, Settlement, WorldEvent } from '../core/world';
 
 export interface Snapshot {
   tick: number;
@@ -8,6 +8,8 @@ export interface Snapshot {
   eventsFrom: number;
   events: WorldEvent[];
   settlements: Settlement[];
+  nations: Nation[];
+  diplo: Pick<DiploState, 'relations' | 'proposals' | 'wars' | 'lastTrade'>;
 }
 
 /**
@@ -20,6 +22,8 @@ export class SimulationClient {
   onSnapshot: (s: Snapshot) => void = () => {};
   onError: (message: string) => void = () => {};
   onDryRun: (lakeMask: Uint8Array) => void = () => {};
+  /** 失敗しても続けられる通知（外交の操作が今はできない、など） */
+  onNotice: (message: string) => void = () => {};
 
   constructor() {
     this.worker = new Worker(new URL('./simulation.worker.ts', import.meta.url), {
@@ -39,10 +43,15 @@ export class SimulationClient {
             eventsFrom: m.eventsFrom,
             events: m.events,
             settlements: m.settlements,
+            nations: m.nations,
+            diplo: m.diplo,
           });
           break;
         case 'error':
           this.onError(m.message);
+          break;
+        case 'notice':
+          this.onNotice(m.message);
           break;
         case 'dryRunResult':
           this.onDryRun(m.lakeMask);

@@ -90,7 +90,8 @@
       "port": "#7fd1e8",
       "floodRisk": "#3a63c9",
       "preview": "#7fd1e8",
-      "_doc": "集落・農地・道路・洪水リスク・ダム予測の表示色"
+      "_doc": "集落・農地・道路・洪水リスク・ダム予測の表示色",
+      "front": "#ff4d3a"
     },
     "settlementHeights": {
       "value": [

@@ -7,6 +7,8 @@ import { computeDI, priceOf, transportMode } from '../src/core/nations/economy';
 import { relationOf } from '../src/core/nations/territory';
 import { declareWar, warStep } from '../src/core/nations/war';
 import { hashWorld, type World } from '../src/core/world';
+import { SimulationController } from '../src/worker/controller';
+import type { FromWorker } from '../src/worker/protocol';
 
 const { data } = loadData();
 const q = data.runtime.hash.quantizeScale;
@@ -250,5 +252,47 @@ describe('M4 外交・戦争', () => {
         expect(tension.get(key) ?? 0).toBeGreaterThanOrEqual(data.nations.diplomacy.ai.warWarningTicks - 1);
       }
     }
+  });
+});
+
+describe('M4 Worker・描画データ', () => {
+  function ctl() {
+    const msgs: FromWorker[] = [];
+    let clock = 0;
+    const c = new SimulationController(data, (m) => msgs.push(m), () => (clock += 1));
+    c.handle({ type: 'init', scenarioId: 'island', seed: SEED, size: SIZE, nations: true });
+    return { c, msgs };
+  }
+
+  it('スナップショットに国・外交・戦争が載り、4 枚目のテクスチャに領有国が入る', () => {
+    const { msgs } = ctl();
+    const snap = msgs.find((m) => m.type === 'snapshot');
+    expect(snap).toBeDefined();
+    if (snap?.type !== 'snapshot') return;
+    expect(snap.nations).toHaveLength(data.nations.setup.nationCount);
+    expect(snap.diplo.relations.length).toBeGreaterThan(0);
+    const f = new Float32Array(snap.pack.data);
+    const n = SIZE * SIZE;
+    const fourth = n * 4 * 3;
+    const owners = new Set<number>();
+    for (let i = 0; i < n; i++) owners.add(f[fourth + i * 4]!);
+    expect(owners.has(1)).toBe(true);
+  });
+
+  it('外交 Op が今はできないときは notice を返し、シミュレーションは止まらない', () => {
+    const { c, msgs } = ctl();
+    c.handle({ type: 'op', op: { t: 'diplo', tick: 0, action: 'declareWar', to: 99 } });
+    expect(msgs.some((m) => m.type === 'notice')).toBe(true);
+    expect(msgs.some((m) => m.type === 'error')).toBe(false);
+    c.handle({ type: 'op', op: { t: 'diplo', tick: 0, action: 'gift', to: 2 } });
+    expect(c.worldRef!.diplo.relations[0]!.trust).toBeGreaterThan(data.nations.diplomacy.trust.initial - 1);
+  });
+
+  it('国家モードをオフにすると従来どおり（国なし）で動く', () => {
+    const msgs: FromWorker[] = [];
+    const c = new SimulationController(data, (m) => msgs.push(m), () => 0);
+    c.handle({ type: 'init', scenarioId: 'island', seed: SEED, size: SIZE, nations: false });
+    expect(c.worldRef!.nations).toHaveLength(0);
+    expect(c.worldRef!.primary.owner.every((v) => v === 0)).toBe(true);
   });
 });

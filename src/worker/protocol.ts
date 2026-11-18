@@ -1,4 +1,4 @@
-import type { Settlement, WorldEvent, WorldParams } from '../core/world';
+import type { DiploState, Nation, Settlement, WorldEvent, WorldParams } from '../core/world';
 
 export type { ContourStroke, Op, ParamKey, Vec2 } from '../core/ops';
 import type { Op, Vec2 } from '../core/ops';
@@ -11,6 +11,8 @@ export type ToWorker =
       scenarioId: string;
       seed: number;
       size?: number;
+      /** 国家モード（国・外交・貿易・戦争）。省略時は runtime.json ui.nationModeDefault */
+      nations?: boolean;
       params?: Partial<WorldParams>;
       ops?: Op[];
       fastForwardTo?: number;
@@ -57,7 +59,10 @@ export type FromWorker =
       eventsFrom: number;
       events: WorldEvent[];
       settlements: Settlement[];
+      nations: Nation[];
+      diplo: Pick<DiploState, 'relations' | 'proposals' | 'wars' | 'lastTrade'>;
     }
+  | { type: 'notice'; message: string }
   | { type: 'progress'; done: number; total: number }
   | { type: 'dryRunResult'; lakeMask: Uint8Array }
   | { type: 'error'; message: string };

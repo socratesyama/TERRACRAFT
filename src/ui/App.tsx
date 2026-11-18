@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { DataBundle } from '../core/data/schema';
 import { SimulationClient, type Snapshot } from '../worker/client';
+import type { Op } from '../worker/protocol';
 import { t } from './i18n';
 import { PauseIcon, PlayIcon } from './Icon';
 import { BiomePanel, CivPanel, DevPanel, EventLog, LayerPanel, ScenarioPanel, StatsPanel, ToolPanel } from './panels';
+import { DiplomacyPanel, NationPanel, TradePanel, WarPanel } from './nationPanels';
 import { useUiStore, useWorldMirror } from './store';
 import { Viewport, type ViewportHandle } from './Viewport';
 
@@ -14,6 +16,7 @@ export function App({ data }: { data: DataBundle }) {
     applyRef.current = fn;
   }, []);
   const scenarioId = useUiStore((s) => s.scenarioId);
+  const nationMode = useUiStore((s) => s.nationMode);
   const handleRef = useRef<ViewportHandle | null>(null);
   const getClient = useCallback(() => clientRef.current, []);
   const { playing, speed, workerStatus, errorMessage, setPlaying, setSpeed, setWorkerStatus } =
@@ -32,6 +35,7 @@ export function App({ data }: { data: DataBundle }) {
     let lastMirrorAt = 0;
 
     client.onReady = () => setWorkerStatus('ready');
+    client.onNotice = (m) => useUiStore.getState().setNotice(m);
     client.onDryRun = (mask) => handleRef.current?.setPreview(mask);
     client.onError = (message) => setWorkerStatus('error', message);
     client.onSnapshot = (s) => {
@@ -45,7 +49,7 @@ export function App({ data }: { data: DataBundle }) {
           towns[c.tier]!++;
           population += c.pop;
         }
-        useWorldMirror.getState().update({ ...s.stats, towns, population });
+        useWorldMirror.getState().update({ ...s.stats, towns, population, nations: s.nations, diplo: s.diplo });
       }
       useUiStore.getState().mergeEvents(s.eventsFrom, s.events);
       applyRef.current?.(s); // GPU へコピーしてから返却する
@@ -53,14 +57,18 @@ export function App({ data }: { data: DataBundle }) {
     };
     setWorkerStatus('connecting');
     useUiStore.getState().clearEvents();
-    client.send({ type: 'init', scenarioId, seed, size: gridSize });
+    client.send({ type: 'init', scenarioId, seed, size: gridSize, nations: nationMode });
 
     return () => {
       client.terminate();
       clientRef.current = null;
     };
-  }, [data, seed, gridSize, scenarioId, setWorkerStatus]);
+  }, [data, seed, gridSize, scenarioId, nationMode, setWorkerStatus]);
 
+  const sendOp = useCallback((op: Op) => {
+    useUiStore.getState().setNotice(null);
+    clientRef.current?.send({ type: 'op', op });
+  }, []);
   const undo = useCallback(() => clientRef.current?.send({ type: 'undo' }), []);
   const redo = useCallback(() => clientRef.current?.send({ type: 'redo' }), []);
 
@@ -129,11 +137,16 @@ export function App({ data }: { data: DataBundle }) {
           />
           <EventLog onFocus={(x, y) => handleRef.current?.focusOn(x, y)} />
           <CivPanel />
+          <NationPanel data={data} />
+          <DiplomacyPanel data={data} send={sendOp} />
+          <WarPanel data={data} send={sendOp} />
+          <TradePanel />
           <StatsPanel data={data} seed={seed} size={gridSize} />
           <LayerPanel data={data} />
           <BiomePanel data={data} />
           <DevPanel
             data={data}
+            onPeace={(v) => clientRef.current?.send({ type: 'op', op: { t: 'param', tick: 0, key: 'peaceMode', value: v ? 1 : 0 } })}
             onRainfall={(v) =>
               clientRef.current?.send({ type: 'op', op: { t: 'param', tick: 0, key: 'rainfallScale', value: v } })
             }

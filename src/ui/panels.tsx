@@ -12,6 +12,8 @@ const LAYERS: readonly { id: LayerId; label: MessageKey }[] = [
   { id: 'biome', label: 'layer.biome' },
   { id: 'vegetation', label: 'layer.vegetation' },
   { id: 'flood', label: 'layer.flood' },
+  { id: 'nation', label: 'layer.nation' },
+  { id: 'defense', label: 'layer.defense' },
   { id: 'erosion', label: 'layer.erosion' },
 ];
 
@@ -135,6 +137,15 @@ export function LayerPanel({ data }: { data: DataBundle }) {
           </div>
         </div>
       )}
+      {layer === 'defense' && (
+        <div className="legend" aria-label={t('legend.defense')}>
+          <div className="legend-bar legend-defense" aria-hidden="true" />
+          <div className="legend-labels">
+            <span>{t('legend.defense.low')}</span>
+            <span>{t('legend.defense.high')}</span>
+          </div>
+        </div>
+      )}
       {layer === 'biome' && (
         <ul className="swatches">
           {biomeKeys(data).map((k) => (
@@ -153,6 +164,8 @@ export function LayerPanel({ data }: { data: DataBundle }) {
 export function ScenarioPanel({ data }: { data: DataBundle }) {
   const scenarioId = useUiStore((s) => s.scenarioId);
   const setScenarioId = useUiStore((s) => s.setScenarioId);
+  const nationMode = useUiStore((s) => s.nationMode);
+  const setNationMode = useUiStore((s) => s.setNationMode);
   return (
     <section className="panel" aria-labelledby="scenario-title">
       <h2 id="scenario-title">{t('panel.scenario')}</h2>
@@ -201,10 +214,14 @@ export function BiomePanel({ data }: { data: DataBundle }) {
 export function DevPanel({
   data,
   onRainfall,
+  onPeace,
 }: {
   data: DataBundle;
   onRainfall: (v: number) => void;
+  onPeace: (v: boolean) => void;
 }) {
+  const peace = useUiStore((s) => s.peaceMode);
+  const setPeace = useUiStore((s) => s.setPeaceMode);
   const v = useUiStore((s) => s.rainfallScale);
   const setV = useUiStore((s) => s.setRainfallScale);
   const r = data.runtime.ui.devRainfallScale;
@@ -227,6 +244,17 @@ export function DevPanel({
             onRainfall(next);
           }}
         />
+      </label>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={peace}
+          onChange={(e) => {
+            setPeace(e.target.checked);
+            onPeace(e.target.checked);
+          }}
+        />
+        <span>{t('dev.peace')}</span>
       </label>
     </section>
   );

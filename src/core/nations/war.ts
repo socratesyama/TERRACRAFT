@@ -32,6 +32,30 @@ export function defenseAt(w: World, data: DataBundle, i: number, keys: readonly 
 
 const TERRAIN_JA: Record<Terrain, string> = { plain: '平野', hills: '丘陵', forest: '森', mountain: '山地', marsh: '湿原', urban: '市街' };
 
+/** 全セルの防御倍率（描画用）。市街は土地利用（町以上）で判定する */
+export function defenseGrid(w: World, data: DataBundle, out: Float32Array, stride: number, offset: number): void {
+  const t = data.war.terrain;
+  const e = E(data);
+  const keys = biomeKeys(data);
+  const mh = landQuantile(w, e.mountainHeightQuantile);
+  const norm = w.maxElevation / w.cellSize;
+  const tiers = new Set(w.settlements.filter((s) => s.tier >= 1).map((s) => s.y * w.size + s.x));
+  for (let i = 0; i < w.primary.height.length; i++) {
+    let m = 0;
+    if (w.primary.height[i]! >= w.params.seaLevel) {
+      const slope = w.derived.slope[i]! / norm;
+      const bio = keys[w.derived.biome[i]!]!;
+      if (tiers.has(i)) m = t.urbanFortress.value;
+      else if (slope >= e.mountainSlope || w.primary.height[i]! >= mh) m = t.mountain;
+      else if (bio === 'wetland') m = t.marsh;
+      else if (/orest$|^boreal$/.test(bio)) m = t.forest;
+      else if (slope >= e.rollingHillsSlope) m = t.rollingHills;
+      else m = t.openPlain;
+    }
+    out[offset + i * stride] = m;
+  }
+}
+
 /** AI の宣戦の見積もり: 利得（食料不足・水の不満・兵力差）− コスト。casus belli（戦争理由）つき */
 /** 国境のうち相手側のセルの防御倍率の平均（AI が地形を見て戦争を決めるため） */
 export function frontMult(w: World, data: DataBundle, me: number, other: number): number {

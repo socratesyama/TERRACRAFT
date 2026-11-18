@@ -31,7 +31,10 @@ export const TERRAIN_FRAGMENT = /* glsl */ `
   ${COMMON}
   uniform sampler2D uData2;
   uniform sampler2D uData3;
+  uniform sampler2D uData4;
   uniform sampler2D uPreview;
+  uniform vec3 uNation[9];
+  uniform vec3 uFront;
   uniform vec3 uFarm;
   uniform vec3 uRoad;
   uniform vec3 uFlood;
@@ -82,6 +85,7 @@ export const TERRAIN_FRAGMENT = /* glsl */ `
     vec4 d = texture2D(uData, vTuv);
     vec4 e = texture2D(uData2, vTuv);
     vec4 f = texture2D(uData3, vTuv);
+    vec4 g = texture2D(uData4, vTuv);
     float px = 1.0 / uSize;
     float hE = texture2D(uData, vTuv + vec2(px, 0.0)).r;
     float hW = texture2D(uData, vTuv - vec2(px, 0.0)).r;
@@ -101,6 +105,10 @@ export const TERRAIN_FRAGMENT = /* glsl */ `
       base = moistRamp(clamp(e.g, 0.0, 1.0));
     } else if (uLayer == 6) {
       base = mix(vec3(0.82, 0.84, 0.80), uFlood, clamp(f.a, 0.0, 1.0));
+    } else if (uLayer == 8) {
+      // 防御の地形倍率（1 = 平野、大きいほど守りやすい）。水域は 0
+      float m = clamp((g.b - 1.0) / 1.6, 0.0, 1.0);
+      base = g.b < 0.5 ? vec3(0.16, 0.42, 0.72) : mix(vec3(0.78, 0.86, 0.62), vec3(0.45, 0.20, 0.12), m);
     } else if (uLayer == 4 || uLayer == 5) {
       // バイオーム色を、実際の植生密度で裸地色へ寄せる（潜在植生と実際の植生の両方を見せる §7.6）
       int id = int(e.a + 0.5);
@@ -119,6 +127,16 @@ export const TERRAIN_FRAGMENT = /* glsl */ `
       if (f.r > 0.5 && f.r < 1.5) base = mix(base, uFarm, 0.55);
       if (f.b > 0.5) base = mix(base, uRoad, 0.85);
     }
+    // 国: 領土の色（領土レイヤーでは濃く、ほかでは薄く）、国境の線、戦争の前線
+    int own = int(g.r + 0.5);
+    if (own > 0 && uLayer == 7) base = mix(base, uNation[own], 0.5);
+    float ownL = texture2D(uData4, vTuv - vec2(px, 0.0)).r;
+    float ownR = texture2D(uData4, vTuv + vec2(px, 0.0)).r;
+    float ownU = texture2D(uData4, vTuv + vec2(0.0, px)).r;
+    float ownD = texture2D(uData4, vTuv - vec2(0.0, px)).r;
+    bool edge = own > 0 && (abs(ownL - g.r) > 0.5 || abs(ownR - g.r) > 0.5 || abs(ownU - g.r) > 0.5 || abs(ownD - g.r) > 0.5);
+    if (edge) base = mix(base, uNation[own], uLayer == 7 ? 0.95 : 0.7);
+    if (g.g > 0.5) base = mix(base, uFront, 0.8);
     // ダムの予測（新しくできる湖）
     float pv = texture2D(uPreview, vTuv).r;
     base = mix(base, uPreviewColor, pv * 0.7);

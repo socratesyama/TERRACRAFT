@@ -62,7 +62,9 @@ export class SimulationController {
   private dispatch(msg: ToWorker): void {
     switch (msg.type) {
       case 'init': {
-        this.world = buildWorld(this.data, msg.scenarioId, msg.seed, msg.size);
+        this.world = buildWorld(this.data, msg.scenarioId, msg.seed, msg.size, {
+          nations: msg.nations ?? this.data.runtime.ui.nationModeDefault.value,
+        });
         Object.assign(this.world.params, msg.params);
         this.opLog.length = 0;
         this.ring = [];
@@ -83,6 +85,15 @@ export class SimulationController {
       case 'op': {
         const w = this.requireWorld();
         this.redoStack = [];
+        if (msg.op.t === 'diplo' || msg.op.t === 'military') {
+          // 外交・軍の操作は「今はできない」が普通に起きる。世界は壊さず、通知だけ返して続ける
+          try {
+            this.commitOp(w, msg.op, true);
+          } catch (e) {
+            this.post({ type: 'notice', message: e instanceof Error ? e.message : String(e) }, []);
+          }
+          return;
+        }
         this.commitOp(w, msg.op, true);
         return;
       }
@@ -267,6 +278,8 @@ export class SimulationController {
         eventsFrom: from,
         events: w.events.filter((e) => (e.seq ?? 0) >= from),
         settlements: w.settlements.map((c) => ({ ...c })),
+        nations: structuredClone(w.nations),
+        diplo: structuredClone({ relations: w.diplo.relations, proposals: w.diplo.proposals, wars: w.diplo.wars, lastTrade: w.diplo.lastTrade }),
       },
       [buf],
     );

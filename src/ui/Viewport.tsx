@@ -33,6 +33,8 @@ const LAYER_INDEX = {
   vegetation: 5,
   flood: 6,
   erosion: 0,
+  nation: 7,
+  defense: 8,
 } as const satisfies Record<LayerId, number>;
 
 export function Viewport({ register, data, client, handleRef, ...opts }: Props) {
@@ -59,6 +61,7 @@ export function Viewport({ register, data, client, handleRef, ...opts }: Props) 
         biomeColors: biomeKeys(data).map((k) => (r.biomeColors as Record<string, string>)[k] ?? r.biomeColors.bare),
         bareColor: r.biomeColors.bare,
         civColors: r.civColors as Record<string, string>,
+        nationColors: ['#555555', ...data.nations.setup.colors],
         settlementHeights: r.settlementHeights.value,
         devicePixelRatioMax,
         devicePixelRatioMaxMobile,
@@ -71,6 +74,7 @@ export function Viewport({ register, data, client, handleRef, ...opts }: Props) 
           vp.setData(new Float32Array(s.pack.data));
         }
         vp.setSettlements(s.settlements);
+        vp.setWars(s.diplo.wars);
       });
       cleanups.push(attachTools(vp, data, client, gridSize));
     } catch {

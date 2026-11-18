@@ -406,3 +406,83 @@ button.primary:hover:not(:disabled) {
 .ev-cause {
   color: var(--accent);
 }
+
+.legend-defense {
+  background: linear-gradient(90deg, #c7dc9e, #73331f);
+}
+.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 13px;
+  min-height: 44px;
+}
+.check input {
+  width: 20px;
+  height: 20px;
+}
+.nation-row {
+  border-left: 4px solid var(--nation, #888);
+  padding: 6px 0 6px 10px;
+  margin-bottom: 10px;
+}
+.nation-row h3 {
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+.di-bars {
+  display: grid;
+  grid-template-columns: 6em 1fr;
+  gap: 2px 8px;
+  font-size: 12px;
+  align-items: center;
+}
+.di-bars .bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.di-bars .bar i {
+  display: block;
+  height: 100%;
+  background: var(--nation, #888);
+}
+.spark {
+  width: 100%;
+  height: 36px;
+}
+.rel-row {
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.rel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.rel-actions button {
+  min-height: 44px;
+  padding: 0 10px;
+}
+.tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  margin-left: 6px;
+}
+.tag[data-s='war'] {
+  background: #b3342a;
+}
+.tag[data-s='tension'] {
+  background: #9a6b12;
+}
+.notice {
+  color: #ffb4a8;
+  font-size: 12px;
+  margin: 6px 0 0;
+}

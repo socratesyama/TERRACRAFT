@@ -65,9 +65,62 @@ const ja = {
   'stats.cell': '1セル',
   'stats.tickCost': '1 tick の計算時間',
   'stats.tickBudget': '予算',
+  'layer.nation': '領土',
+  'layer.defense': '防御地形',
+  'legend.defense': '守りやすさ',
+  'legend.defense.low': '平野 ×1',
+  'legend.defense.high': '山・市街 ×2以上',
+  'scenario.nationMode': '国家モード（国・外交・戦争）',
+  'dev.peace': '平和モード（戦争が起きない）',
+  'panel.nations': '国の発展度',
+  'nation.rank': '順位',
+  'nation.pop': '人口',
+  'nation.cells': '領土',
+  'nation.army': '軍',
+  'nation.stock': '備蓄',
+  'nation.di': '発展度',
+  'nation.you': 'あなた',
+  'nation.off': '国家モードをオンにすると表示されます',
+  'nation.history': '発展度の推移',
+  'panel.diplo': '外交',
+  'diplo.trust': '信頼',
+  'diplo.proposeTrade': '貿易協定',
+  'diplo.proposeNonAgg': '不可侵',
+  'diplo.gift': '贈り物',
+  'diplo.war': '宣戦',
+  'diplo.peace': '講和を提案',
+  'diplo.cancel': '協定を破棄',
+  'diplo.accept': '受ける',
+  'diplo.decline': '断る',
+  'diplo.proposals': '届いている提案',
+  'diplo.none': '提案はありません',
+  'diplo.pactTrade': '貿易協定',
+  'diplo.pactNonAgg': '不可侵',
+  'diplo.border': '国境',
+  'panel.war': '戦争',
+  'war.none': '戦争は起きていません',
+  'war.mobilize': '動員の目標',
+  'war.captured': '占領',
+  'war.weariness': '戦争疲れ',
+  'war.casus': '戦争理由',
+  'panel.trade': '貿易',
+  'trade.none': 'まだ取引はありません',
+  'trade.loss': '輸送での損失',
 } as const;
 
 /** バイオームの表示名（キーは data/ecology-biomes.json と特別区分 water/snow/coast/wetland） */
+export const STATUS_JA: Readonly<Record<string, string>> = { peace: '平和', tension: '緊張', war: '戦争', truce: '休戦' };
+export const PERSONALITY_JA: Readonly<Record<string, string>> = {
+  player: 'プレイヤー',
+  expansionist: '拡張主義',
+  conservationist: '自然保護',
+  mercantile: '商業重視',
+  cautious: '慎重',
+};
+export const RES_JA: Readonly<Record<string, string>> = { food: '食料', wood: '木材', ore: '鉱石' };
+export const MODE_JA: Readonly<Record<string, string>> = { road: '陸路', riverDown: '川下り', riverUp: '川上り', sea: '海路' };
+export const DI_JA = ['人口', '食料', '経済', 'インフラ', '環境', '災害への強さ', '技術', '外交'] as const;
+
 const biomeNames: Readonly<Record<string, string>> = {
   water: '水域',
   snow: '高山（雪）',
