@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { biomeKeys } from '../core/climate/climate';
 import type { DataBundle } from '../core/data/schema';
 import { shapeStroke } from '../core/geometry';
+import { readCell } from '../core/inspect';
 import { PACK_CHANNELS, PACK_TEXTURES } from '../core/renderPack';
 import { TerrainViewport, type ViewportOptions } from '../render/Viewport';
 import type { SimulationClient, Snapshot } from '../worker/client';
@@ -73,14 +74,35 @@ export function Viewport({ register, data, client, handleRef, ...opts }: Props) 
       vpRef.current = viewport;
       const vp = viewport;
       handleRef.current = { focusOn: (x, y) => vp.focusOn(x, y), setPreview: (m) => vp.setPreview(m), screenshot: () => vp.screenshot() };
+      let lastPack: Float32Array | null = null;
       register((s) => {
         if (s.pack.size * s.pack.size * PACK_CHANNELS * PACK_TEXTURES * 4 === s.pack.data.byteLength) {
-          vp.setData(new Float32Array(s.pack.data));
+          lastPack = new Float32Array(s.pack.data);
+          vp.setData(lastPack);
         }
         vp.setSettlements(s.settlements);
         vp.setWars(s.diplo.wars);
       });
       cleanups.push(attachTools(vp, data, client, gridSize));
+      // セルを指すと数値でも見える（§13.7）。マウスは指している間、タッチは「見る」ツールでのタップ。描いている間は出さない
+      const canvas = vp.canvas;
+      const hover = (e: PointerEvent): void => {
+        const ui = useUiStore.getState();
+        if (!lastPack || (e.pointerType === 'touch' && e.type === 'pointermove') || (e.buttons !== 0 && e.pointerType !== 'touch')) return;
+        if (e.type === 'pointerdown' && !(e.pointerType === 'touch' && ui.tool === 'view')) return;
+        const c = vp.pick(e.clientX, e.clientY);
+        const cell = c ? readCell(lastPack, gridSize, Math.round(c.x), Math.round(c.y)) : null;
+        ui.setInspect(cell ? { cell, x: e.clientX, y: e.clientY } : null);
+      };
+      const leave = (): void => useUiStore.getState().setInspect(null);
+      canvas.addEventListener('pointermove', hover);
+      canvas.addEventListener('pointerdown', hover);
+      canvas.addEventListener('pointerleave', leave);
+      cleanups.push(() => {
+        canvas.removeEventListener('pointermove', hover);
+        canvas.removeEventListener('pointerdown', hover);
+        canvas.removeEventListener('pointerleave', leave);
+      });
     } catch {
       setFailed(true);
     }

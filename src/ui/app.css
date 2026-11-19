@@ -731,3 +731,28 @@ button.primary:hover:not(:disabled) {
   font-size: var(--text-sm);
   color: var(--ink-muted);
 }
+
+/* セル情報の吹き出し（§13.7）。ポインタを邪魔しない */
+.inspect {
+  position: fixed;
+  z-index: 30;
+  min-width: 150px;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  background: var(--surface);
+  border-radius: var(--radius);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.inspect div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.inspect dt {
+  color: var(--ink-muted);
+}
+.inspect dd {
+  margin: 0;
+}

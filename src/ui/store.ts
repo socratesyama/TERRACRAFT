@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { CompareResult } from '../core/compare';
+import type { CellInfo } from '../core/inspect';
 import type { ContourStroke, Op } from '../core/ops';
 import type { ShareState } from '../core/share';
 import type { DiploState, Nation, ObsState, WorldEvent } from '../core/world';
@@ -54,6 +55,9 @@ interface UiState {
   /** 共有 URL の再生（早送り）の進み 0〜1 */
   replayProgress: number | null;
   setReplayProgress: (p: number | null) => void;
+  /** 指しているセルの値（§13.7）。null で非表示。x, y は画面座標 */
+  inspect: { cell: CellInfo; x: number; y: number } | null;
+  setInspect: (i: { cell: CellInfo; x: number; y: number } | null) => void;
   /** 等高線を描いて始めるモード（§13.3）。描いた線は contours に溜め、1 本描くたびに世界を作り直す */
   contourMode: boolean;
   contours: ContourStroke[];
@@ -129,6 +133,8 @@ export const useUiStore = create<UiState>()((set) => ({
   setShareMessage: (shareMessage) => set({ shareMessage }),
   replayProgress: null,
   setReplayProgress: (replayProgress) => set({ replayProgress }),
+  inspect: null,
+  setInspect: (inspect) => set({ inspect }),
   contourMode: false,
   contours: [],
   contourLevel: '',

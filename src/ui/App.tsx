@@ -5,12 +5,13 @@ import { SimulationClient, type Snapshot } from '../worker/client';
 import type { Op } from '../worker/protocol';
 import { t } from './i18n';
 import { PauseIcon, PlayIcon } from './Icon';
-import { BiomePanel, CivPanel, DevPanel, EventLog, LayerPanel, ScenarioPanel, StatsPanel, ToolPanel } from './panels';
+import { BiomePanel, CivPanel, DevPanel, EventLog, LayerPanel, ScenarioPanel, StatsPanel, TOOLS, ToolPanel } from './panels';
 import { ComparePanel, ObservablesPanel, TracerPanel } from './insightPanels';
 import { DiplomacyPanel, NationPanel, TradePanel, WarPanel } from './nationPanels';
 import { runDemo } from './demo';
 import { Chips, ContourBar, QuickBar } from './mobile';
-import { DemoCaption, Welcome } from './welcome';
+import { mapKey } from './shortcuts';
+import { DemoCaption, InspectTooltip, Welcome } from './welcome';
 import type { LayerId, ToolId } from './store';
 import { SharePanel, useAutosave, useShareBoot } from './sharePanel';
 import { useUiStore, useWorldMirror } from './store';
@@ -118,20 +119,22 @@ export function App({ data }: { data: DataBundle }) {
   const undo = useCallback(() => clientRef.current?.send({ type: 'undo' }), []);
   const redo = useCallback(() => clientRef.current?.send({ type: 'redo' }), []);
 
-  // キーボード: Ctrl/Cmd+Z で元に戻す、Ctrl/Cmd+Shift+Z / Ctrl+Y でやり直す
+  // キーボード（§13.5）: Space = 再生/停止、1〜9 = ツール、Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y
+  const togglePlayRef = useRef<() => void>(() => undefined);
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-      if (!(e.ctrlKey || e.metaKey)) return;
-      const k = e.key.toLowerCase();
-      if (k === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        undo();
-      } else if ((k === 'z' && e.shiftKey) || k === 'y') {
-        e.preventDefault();
-        redo();
-      }
+      const typing = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT');
+      const ui = useUiStore.getState();
+      const order = TOOLS.filter((x) => x.id !== 'contour' || ui.contourMode).map((x) => x.id);
+      const act = mapKey(e, order, typing);
+      if (!act) return;
+      if (act.kind === 'togglePlay' && target?.tagName === 'BUTTON') return; // ボタンにフォーカスがあるときの Space は、そのボタンの押下
+      e.preventDefault();
+      if (act.kind === 'undo') undo();
+      else if (act.kind === 'redo') redo();
+      else if (act.kind === 'tool') ui.setTool(act.tool);
+      else togglePlayRef.current();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -218,6 +221,8 @@ export function App({ data }: { data: DataBundle }) {
     clientRef.current?.send(next ? { type: 'play', speed } : { type: 'pause' });
   };
 
+  togglePlayRef.current = togglePlay;
+
   const changeSpeed = (s: number) => {
     setSpeed(s);
     if (playing) clientRef.current?.send({ type: 'play', speed: s });
@@ -241,6 +246,7 @@ export function App({ data }: { data: DataBundle }) {
         <QuickBar data={data} onUndo={undo} onRain={sendRain} />
         <Chips />
         <DemoCaption onStop={stopDemo} />
+        <InspectTooltip data={data} />
         <Welcome onDemo={startDemo} onClose={closeWelcome} onDraw={startDrawing} />
         <Viewport
           gridSize={gridSize}
