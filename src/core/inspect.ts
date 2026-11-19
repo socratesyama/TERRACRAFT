@@ -1,5 +1,10 @@
 import { PACK_CHANNELS } from './renderPack';
 
+/** Worker に返却する転送バッファから独立した、セル検査用のコピーを作る。 */
+export function copyRenderPackData(buffer: ArrayBuffer): Float32Array {
+  return new Float32Array(buffer.slice(0));
+}
+
 /** セルを指したときに見せる値（計画書 §13.7 InspectTooltip の「数値でも見える」）。描画パック（スナップショット）から読む */
 export interface CellInfo {
   x: number;

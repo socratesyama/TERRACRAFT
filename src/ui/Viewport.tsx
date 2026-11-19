@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { biomeKeys } from '../core/climate/climate';
 import type { DataBundle } from '../core/data/schema';
 import { shapeStroke } from '../core/geometry';
-import { readCell } from '../core/inspect';
+import { copyRenderPackData, readCell } from '../core/inspect';
 import { PACK_CHANNELS, PACK_TEXTURES } from '../core/renderPack';
 import { TerrainViewport, type ViewportOptions } from '../render/Viewport';
 import type { SimulationClient, Snapshot } from '../worker/client';
@@ -81,7 +81,7 @@ export function Viewport({ register, data, client, handleRef, ...opts }: Props) 
       let lastPack: Float32Array | null = null;
       register((s) => {
         if (s.pack.size * s.pack.size * PACK_CHANNELS * PACK_TEXTURES * 4 === s.pack.data.byteLength) {
-          lastPack = new Float32Array(s.pack.data);
+          lastPack = copyRenderPackData(s.pack.data);
           vp.setData(lastPack);
         }
         vp.setSettlements(s.settlements);
