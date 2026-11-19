@@ -46,6 +46,9 @@ export interface ViewportOptions {
   nationColors: string[];
   /** 集落マーカーの高さ（セル）。村・町・都市・港町 */
   settlementHeights: number[];
+  /** カメラツアーの 1 周の秒数と、描画モードの真上視点の高さ（runtime.json render.cameraTour） */
+  tourOrbitSeconds: number;
+  topDownHeightFactor: number;
   /** 侵食レイヤーで最も濃く表示する標高変化（runtime.json render.erosionLayerScale） */
   erosionLayerScale: number;
   devicePixelRatioMax: number;
@@ -107,7 +110,7 @@ export class TerrainViewport {
 
   constructor(
     private readonly container: HTMLElement,
-    opts: ViewportOptions,
+    private readonly opts: ViewportOptions,
   ) {
     const { gridSize: size } = opts;
     this.size = size;
@@ -347,6 +350,21 @@ export class TerrainViewport {
     offset.setLength(Math.min(offset.length(), this.size * 0.45));
     this.controls.target.copy(target);
     this.camera.position.copy(target).add(offset);
+  }
+
+  /** デモ用カメラツアー（§12.2）: 注視点の周りをゆっくり 1 周する。操作したら自動で止めるのは呼び出し側 */
+  setTour(on: boolean): void {
+    this.controls.autoRotate = on;
+    this.controls.autoRotateSpeed = 60 / this.opts.tourOrbitSeconds; // 60fps で 1 周 = 60/speed 秒
+  }
+
+  /** 真上からの視点（描画モード、§12.2）と、斜めの標準視点 */
+  setTopDown(on: boolean): void {
+    const s = this.size;
+    this.controls.target.set(0, 0, 0);
+    if (on) this.camera.position.set(0, s * this.opts.topDownHeightFactor, 0.001);
+    else this.camera.position.set(0, s * 0.75, s * 0.85);
+    this.controls.update();
   }
 
   setOrbitEnabled(on: boolean): void {

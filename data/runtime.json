@@ -105,6 +105,12 @@
     "erosionLayerScale": {
       "value": 0.02,
       "_doc": "侵食レイヤーで最も濃く表示する標高変化（正規化標高。0.02 = 60 m）。削れは暖色、堆積は寒色"
+    },
+    "cameraTour": {
+      "orbitSeconds": 45,
+      "_doc": "デモ用カメラツアー（§12.2）。島の周りを 1 周する秒数",
+      "topDownHeightFactor": 1.5,
+      "topDownDoc": "描画モードの真上視点の高さ（グリッド幅の倍数）"
     }
   },
   "ui": {
@@ -266,6 +272,11 @@
         "value": "island"
       },
       {
+        "atMs": 300,
+        "do": "tour",
+        "value": 1
+      },
+      {
         "atMs": 600,
         "do": "layer",
         "value": "terrain"
@@ -386,6 +397,11 @@
         "atMs": 28500,
         "do": "caption",
         "text": "あなたの手で、世界を変えてみましょう。"
+      },
+      {
+        "atMs": 29800,
+        "do": "tour",
+        "value": 0
       },
       {
         "atMs": 30000,

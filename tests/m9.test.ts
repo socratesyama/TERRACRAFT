@@ -30,6 +30,7 @@ function fake(): { sched: Scheduler; flush: () => void; log: string[]; host: Dem
       play: () => log.push('play'),
       pause: () => log.push('pause'),
       speed: (v) => log.push(`speed:${v}`),
+      tour: (on) => log.push(`tour:${on}`),
       end: () => log.push('end'),
     },
   };
@@ -69,7 +70,7 @@ describe('M9 デモ再生', () => {
     const stop = runDemo(data, f.host, f.sched);
     stop();
     f.flush();
-    expect(f.log).toEqual(['pause', 'caption:', 'end']);
+    expect(f.log).toEqual(['pause', 'tour:false', 'caption:', 'end']);
   });
 
   it('デモの Op は実際の Worker で適用でき、同じデモは同じ世界になる', () => {

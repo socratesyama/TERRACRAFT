@@ -171,6 +171,7 @@ export function App({ data }: { data: DataBundle }) {
         u.setSpeed(v);
         if (u.playing) send({ type: 'play', speed: v });
       },
+      tour: (on) => handleRef.current?.setTour(on),
       end: () => useUiStore.getState().setDemoRunning(false),
     });
   }, [data]);

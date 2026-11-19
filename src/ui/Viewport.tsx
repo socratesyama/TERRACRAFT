@@ -13,12 +13,14 @@ export interface ViewportHandle {
   focusOn: (x: number, y: number) => void;
   setPreview: (mask: Uint8Array | null) => void;
   screenshot: () => Promise<Blob | null>;
+  setTour: (on: boolean) => void;
+  setTopDown: (on: boolean) => void;
 }
 
 interface Props
   extends Omit<
     ViewportOptions,
-    'biomeColors' | 'bareColor' | 'temperatureMinC' | 'temperatureMaxC' | 'civColors' | 'settlementHeights' | 'nationColors' | 'erosionLayerScale'
+    'biomeColors' | 'bareColor' | 'temperatureMinC' | 'temperatureMaxC' | 'civColors' | 'settlementHeights' | 'nationColors' | 'erosionLayerScale' | 'tourOrbitSeconds' | 'topDownHeightFactor'
   > {
   data: DataBundle;
   /** スナップショットの受け口を登録する（描画後に必ず release するのは App 側） */
@@ -69,11 +71,13 @@ export function Viewport({ register, data, client, handleRef, ...opts }: Props) 
         settlementHeights: r.settlementHeights.value,
         devicePixelRatioMax,
         erosionLayerScale: data.runtime.render.erosionLayerScale.value,
+        tourOrbitSeconds: data.runtime.render.cameraTour.orbitSeconds,
+        topDownHeightFactor: data.runtime.render.cameraTour.topDownHeightFactor,
         devicePixelRatioMaxMobile,
       });
       vpRef.current = viewport;
       const vp = viewport;
-      handleRef.current = { focusOn: (x, y) => vp.focusOn(x, y), setPreview: (m) => vp.setPreview(m), screenshot: () => vp.screenshot() };
+      handleRef.current = { focusOn: (x, y) => vp.focusOn(x, y), setPreview: (m) => vp.setPreview(m), screenshot: () => vp.screenshot(), setTour: (on) => vp.setTour(on), setTopDown: (on) => vp.setTopDown(on) };
       let lastPack: Float32Array | null = null;
       register((s) => {
         if (s.pack.size * s.pack.size * PACK_CHANNELS * PACK_TEXTURES * 4 === s.pack.data.byteLength) {
@@ -118,6 +122,16 @@ export function Viewport({ register, data, client, handleRef, ...opts }: Props) 
   useEffect(() => {
     vpRef.current?.setLayer(LAYER_INDEX[layer]);
   }, [layer]);
+
+  // 描画モードは真上から、終わったら斜めの標準視点へ（§12.2）
+  const contourMode = useUiStore((s) => s.contourMode);
+  const wasContour = useRef(false);
+  useEffect(() => {
+    if (contourMode !== wasContour.current) {
+      vpRef.current?.setTopDown(contourMode);
+      wasContour.current = contourMode;
+    }
+  }, [contourMode]);
 
   return (
     <div ref={hostRef} className="viewport">

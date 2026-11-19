@@ -4,7 +4,7 @@ import type { Op } from '../core/ops';
 /** デモの手順 1 行（data/runtime.json demo.steps）。数値と文言はデータ側にあり、ここには手順を書かない */
 export interface DemoStep {
   atMs: number;
-  do: 'scenario' | 'layer' | 'tool' | 'caption' | 'op' | 'play' | 'pause' | 'speed' | 'end';
+  do: 'scenario' | 'layer' | 'tool' | 'caption' | 'op' | 'play' | 'pause' | 'speed' | 'tour' | 'end';
   value?: string | number;
   text?: string;
   op?: Record<string, unknown>;
@@ -20,6 +20,7 @@ export interface DemoHost {
   play(): void;
   pause(): void;
   speed(v: number): void;
+  tour(on: boolean): void;
   end(): void;
 }
 
@@ -77,6 +78,9 @@ export function runDemo(data: DataBundle, host: DemoHost, sched: Scheduler = rea
           case 'speed':
             host.speed(Number(s.value));
             break;
+          case 'tour':
+            host.tour(Number(s.value) === 1);
+            break;
           case 'end':
             finish();
             break;
@@ -87,6 +91,7 @@ export function runDemo(data: DataBundle, host: DemoHost, sched: Scheduler = rea
   return () => {
     for (const c of cancels) c();
     host.pause();
+    host.tour(false);
     finish();
   };
 }
