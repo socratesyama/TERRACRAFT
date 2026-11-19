@@ -1,0 +1,47 @@
+name: Deploy to Cloudflare Pages
+
+# main への push で本番、プルリクエストでプレビューを公開する。
+# 事前に、リポジトリの Settings → Secrets and variables → Actions に次の 2 つを登録する:
+#   CLOUDFLARE_API_TOKEN  （権限: Account / Cloudflare Pages / Edit）
+#   CLOUDFLARE_ACCOUNT_ID
+# 未登録のときは、デプロイの手順だけ飛ばす（CI は失敗させない）。
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  deployments: write
+  pull-requests: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+      - name: Validate data/
+        run: python3 scripts/validate.py
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Deploy
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=terracraft --branch=${{ github.head_ref || github.ref_name }}

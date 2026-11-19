@@ -1,0 +1,4 @@
+# Cloudflare Pages（Direct Upload / GitHub Actions 用）。Git 連携なら、この設定は使われず、ダッシュボードの設定が使われる。
+name = "terracraft"
+pages_build_output_dir = "./dist"
+compatibility_date = "2024-11-01"

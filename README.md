@@ -38,6 +38,7 @@ python3 scripts/validate.py   # data/ の検証（0 エラー / 0 警告にす�
 - TypeScript + Vite、UI は React、UI 状態だけ Zustand、3D は素の Three.js、シミュレーションは Web Worker（`new Worker(new URL(..., import.meta.url))`）。依存は完全固定（`^` なし）。
 - 決定論: seed 付き PRNG のみ（`Math.random` は使わない）。同じ seed と同じ操作で同じ世界になります。
 - 性能: 1 tick 33 ms の予算、スナップショットは 10 Hz 以下、バッファプール + 背圧。描画が間に合わないときは高速モードで間引きます。
+- デプロイ: Cloudflare Pages（`docs/deploy.md`）。
 - タッチ端末は標準グリッドを 128² にし、DPR を制限します（`data/runtime.json`）。
 
 ## 実装の状況
