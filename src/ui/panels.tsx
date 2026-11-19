@@ -192,6 +192,9 @@ export function ScenarioPanel({ data }: { data: DataBundle }) {
           </button>
         ))}
       </div>
+      <button type="button" className="choice" onClick={() => useUiStore.getState().startContour((data.runtime.ui as unknown as { contour: { defaultLevel: string } }).contour.defaultLevel)}>
+        {t('contour.start')}
+      </button>
       <label className="check">
         <input type="checkbox" checked={nationMode} onChange={(e) => setNationMode(e.target.checked)} />
         <span>{t('scenario.nationMode')}</span>
@@ -296,6 +299,7 @@ export function DevPanel({
 }
 
 export const TOOLS: readonly { id: ToolId; label: MessageKey }[] = [
+  { id: 'contour', label: 'tool.contour' },
   { id: 'view', label: 'tool.view' },
   { id: 'mountain', label: 'tool.mountain' },
   { id: 'dig', label: 'tool.dig' },
@@ -331,7 +335,7 @@ export function ToolPanel({
     <section className="panel" aria-labelledby="tools-title">
       <h2 id="tools-title">{t('panel.tools')}</h2>
       <div className="choices wrap" role="radiogroup" aria-label={t('panel.tools')}>
-        {TOOLS.map(({ id, label }) => (
+        {TOOLS.filter((x) => x.id !== 'contour').map(({ id, label }) => (
           <button
             key={id}
             type="button"

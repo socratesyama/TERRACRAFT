@@ -155,6 +155,53 @@
       "gridSize": 128,
       "sheetMaxHeightVh": 58,
       "welcomeStorageKey": "terracraft.welcomeSeen"
+    },
+    "contour": {
+      "_doc": "等高線を描く体験（§13.3）。標高は正規化標高（scale.json maxElevation を掛けると m）。描いた線は Douglas–Peucker で間引き、Chaikin で滑らかにし、始点の近くで終えたら閉じる",
+      "levels": [
+        {
+          "id": "sea",
+          "label": "海・湖",
+          "elevation": 0.04
+        },
+        {
+          "id": "coast",
+          "label": "海岸",
+          "elevation": 0.13
+        },
+        {
+          "id": "lowland",
+          "label": "低地",
+          "elevation": 0.2
+        },
+        {
+          "id": "hill",
+          "label": "丘",
+          "elevation": 0.35
+        },
+        {
+          "id": "mountain",
+          "label": "山",
+          "elevation": 0.6
+        },
+        {
+          "id": "peak",
+          "label": "高山",
+          "elevation": 0.85
+        }
+      ],
+      "defaultLevel": "lowland",
+      "widthCells": 3,
+      "simplifyToleranceCells": 1.5,
+      "chaikinPasses": 1,
+      "closeDistanceCells": 4,
+      "minStrokeCells": 6,
+      "seaBorder": {
+        "elevation": 0.02,
+        "inset": 0.015,
+        "width": 3,
+        "_doc": "描いた世界の外周に自動で足す海の枠。これが無いと、最も近い等高線の標高が外側いっぱいに広がり、海岸線を描いても外が陸になる"
+      }
     }
   },
   "sources": [

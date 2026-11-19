@@ -711,3 +711,23 @@ button.primary:hover:not(:disabled) {
 .legend-erosion {
   background: linear-gradient(90deg, #f26b1f, #5b5b5b, #1a9fc7);
 }
+
+/* 等高線を描いている間の操作バー（3D 表示の上端）。案内は最初の 1 本を描くまで */
+.contourbar {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  right: var(--space-2);
+  z-index: 7;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+.contourbar .hint {
+  flex-basis: 100%;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}

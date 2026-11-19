@@ -78,14 +78,15 @@ export function terrainParams(data: DataBundle): TerrainParams {
 }
 
 /** 等高線（プリセット）から地形を作る（Dirty.Height を立てる） */
-export function buildTerrain(w: World, data: DataBundle, scenario: Scenario): void {
+export function buildTerrain(w: World, data: DataBundle, scenario: Scenario, custom?: Contour[]): void {
   const preset = (data.terrain.presets as unknown as Record<string, { contours: Contour[] }>)[
     scenario.preset
   ];
   if (!preset) throw new RangeError(`未知の地形プリセット: ${scenario.preset}`);
+  // 自分で描いた等高線があれば、プリセットの代わりに使う（風向などはシナリオのまま）
   generateHeight(
     w.size,
-    preset.contours,
+    custom ?? preset.contours,
     w.seed,
     terrainParams(data),
     w.primary.height,
@@ -234,12 +235,12 @@ export function buildWorld(
   scenarioId: string,
   seed: number,
   size?: number,
-  opts: { nations?: boolean } = {},
+  opts: { nations?: boolean; contours?: Contour[] } = {},
 ): World {
   const scenario = resolveScenario(data, scenarioId);
   const w = allocWorld(data, { seed, size });
   w.scenarioId = scenarioId;
-  buildTerrain(w, data, scenario);
+  buildTerrain(w, data, scenario, opts.contours);
   recomputeDerived(w, data);
   seedVegetation(w, data);
   recomputeFlow(w, data); // 植生ぶんの浸透を反映

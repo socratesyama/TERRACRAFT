@@ -20,6 +20,13 @@ export type BatchResult = 'busy' | 'idle' | 'stopped';
  * 世界の所有者はここだけ。メインスレッドには snapshot（コピー）しか渡さない。
  * 時間の刻み・頻度・予算の数値はすべて data/runtime.json から読む。
  */
+/** 平らな [x0,y0,x1,y1,...] を [[x,y],...] に */
+function pairs(a: number[]): [number, number][] {
+  const out: [number, number][] = [];
+  for (let i = 0; i + 1 < a.length; i += 2) out.push([a[i]!, a[i + 1]!]);
+  return out;
+}
+
 export class SimulationController {
   private world: World | null = null;
   private pool: BufferPool | null = null;
@@ -69,17 +76,26 @@ export class SimulationController {
   private dispatch(msg: ToWorker): void {
     switch (msg.type) {
       case 'init': {
+        // 描いた等高線（tick 0 の contour Op）は、プリセットの代わりに地形を決める。丸めは共有形式と同じ
+        const contourOps = (msg.ops ?? []).filter((o) => o.t === 'contour').map((o) => quantizeOp(this.data, o) as Extract<Op, { t: 'contour' }>);
+        const rest = (msg.ops ?? []).filter((o) => o.t !== 'contour');
+        const sb = (this.data.runtime.ui as unknown as { contour: { seaBorder: { elevation: number; inset: number; width: number } } }).contour.seaBorder;
+        const border = { points: [[sb.inset, sb.inset], [1 - sb.inset, sb.inset], [1 - sb.inset, 1 - sb.inset], [sb.inset, 1 - sb.inset], [sb.inset, sb.inset]] as [number, number][], elevation: sb.elevation, width: sb.width };
+        const drawn = contourOps.map((o) => ({ points: pairs(o.stroke.points), elevation: o.stroke.elevation, width: o.stroke.width }));
+        const custom = contourOps.length > 0 || msg.blank ? [border, ...drawn] : undefined;
         this.world = buildWorld(this.data, msg.scenarioId, msg.seed, msg.size, {
           nations: msg.nations ?? this.data.runtime.ui.nationModeDefault.value,
+          contours: custom,
         });
         Object.assign(this.world.params, msg.params);
         this.opLog.length = 0;
+        this.opLog.push(...contourOps);
         this.ring = [];
         this.redoStack = [];
         this.lastSentSeq = 0;
         this.initInfo = { scenarioId: msg.scenarioId, seed: msg.seed, size: this.world.size, nations: this.world.nations.length > 0 };
         this.everDegraded = false;
-        this.replay(this.world, msg.ops ?? [], msg.fastForwardTo ?? 0);
+        this.replay(this.world, rest, msg.fastForwardTo ?? 0);
         refreshDirty(this.world, this.data);
         this.baseline = takeBaseline(this.world);
         this.lastSentObs = -1;

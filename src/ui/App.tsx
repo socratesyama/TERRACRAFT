@@ -9,7 +9,7 @@ import { BiomePanel, CivPanel, DevPanel, EventLog, LayerPanel, ScenarioPanel, St
 import { ComparePanel, ObservablesPanel, TracerPanel } from './insightPanels';
 import { DiplomacyPanel, NationPanel, TradePanel, WarPanel } from './nationPanels';
 import { runDemo } from './demo';
-import { Chips, QuickBar } from './mobile';
+import { Chips, ContourBar, QuickBar } from './mobile';
 import { DemoCaption, Welcome } from './welcome';
 import type { LayerId, ToolId } from './store';
 import { SharePanel, useAutosave, useShareBoot } from './sharePanel';
@@ -37,14 +37,13 @@ export function App({ data }: { data: DataBundle }) {
     return coarse ? data.runtime.ui.mobile.gridSize : data.scale.grid.defaultSize;
   });
   const initNonce = useUiStore((s) => s.initNonce);
-  /** 共有 URL・保存からの読み込み。次の init で一度だけ使う */
-  const pendingRef = useRef<{ ops: Op[]; fastForwardTo: number } | null>(null);
   useShareBoot(data);
   useAutosave(data, getClient);
   const loadShared = useCallback(
     (st: ShareState, fastForward: boolean) => {
       const ui = useUiStore.getState();
-      pendingRef.current = { ops: fastForward ? st.ops : st.ops.filter((o) => o.tick === 0), fastForwardTo: fastForward ? st.tick : 0 };
+      ui.setPendingInit({ ops: fastForward ? st.ops : st.ops.filter((o) => o.tick === 0), fastForwardTo: fastForward ? st.tick : 0 });
+      useUiStore.setState({ contourMode: false, contours: [] });
       const peace = [...st.ops].reverse().find((o) => o.t === 'param' && o.key === 'peaceMode');
       ui.setScenarioId(st.scenarioId);
       ui.setNationMode(st.nations);
@@ -101,9 +100,9 @@ export function App({ data }: { data: DataBundle }) {
     };
     setWorkerStatus('connecting');
     useUiStore.getState().clearEvents();
-    const pending = pendingRef.current;
-    pendingRef.current = null;
-    client.send({ type: 'init', scenarioId, seed, size: gridSize, nations: nationMode, ops: pending?.ops, fastForwardTo: pending?.fastForwardTo });
+    const pending = useUiStore.getState().pendingInit;
+    useUiStore.getState().setPendingInit(null);
+    client.send({ type: 'init', scenarioId, seed, size: gridSize, nations: nationMode, ops: pending?.ops, blank: pending?.blank, fastForwardTo: pending?.fastForwardTo });
     useUiStore.getState().setReplayProgress(null);
 
     return () => {
@@ -172,6 +171,19 @@ export function App({ data }: { data: DataBundle }) {
       end: () => useUiStore.getState().setDemoRunning(false),
     });
   }, [data]);
+  const startDrawing = useCallback(() => {
+    const ui = useUiStore.getState();
+    ui.setWelcomeOpen(false);
+    ui.setSheetOpen(false);
+    stopDemoRef.current?.();
+    ui.setDemoRunning(false);
+    ui.startContour((data.runtime.ui as unknown as { contour: { defaultLevel: string } }).contour.defaultLevel);
+    try {
+      localStorage.setItem(data.runtime.ui.mobile.welcomeStorageKey, '1');
+    } catch {
+      // 保存できなくても、次回また出るだけ
+    }
+  }, [data]);
   const stopDemo = useCallback(() => {
     stopDemoRef.current?.();
     stopDemoRef.current = null;
@@ -225,10 +237,11 @@ export function App({ data }: { data: DataBundle }) {
       </header>
 
       <main className="stage">
+        <ContourBar data={data} />
         <QuickBar data={data} onUndo={undo} onRain={sendRain} />
         <Chips />
         <DemoCaption onStop={stopDemo} />
-        <Welcome onDemo={startDemo} onClose={closeWelcome} />
+        <Welcome onDemo={startDemo} onClose={closeWelcome} onDraw={startDrawing} />
         <Viewport
           gridSize={gridSize}
           data={data}

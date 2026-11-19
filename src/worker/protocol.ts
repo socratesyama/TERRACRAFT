@@ -17,7 +17,10 @@ export type ToWorker =
       /** 国家モード（国・外交・貿易・戦争）。省略時は runtime.json ui.nationModeDefault */
       nations?: boolean;
       params?: Partial<WorldParams>;
+      /** ops の中の contour（tick 0）は、プリセットの代わりに地形を決める等高線として使う */
       ops?: Op[];
+      /** 等高線を 1 本も描いていない「白紙の海」から始める（描いて始めるモード） */
+      blank?: boolean;
       fastForwardTo?: number;
     }
   | { type: 'op'; op: Op }

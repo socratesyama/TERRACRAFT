@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { biomeKeys } from '../core/climate/climate';
 import type { DataBundle } from '../core/data/schema';
+import { shapeStroke } from '../core/geometry';
 import { PACK_CHANNELS, PACK_TEXTURES } from '../core/renderPack';
 import { TerrainViewport, type ViewportOptions } from '../render/Viewport';
 import type { SimulationClient, Snapshot } from '../worker/client';
@@ -184,6 +185,7 @@ function attachTools(vp: TerrainViewport, data: DataBundle, client: () => Simula
     if (Math.hypot(c.x - stroke.last.x, c.y - stroke.last.y) >= tools.strokeSpacingCells.value) {
       stroke.pts.push(...norm(c));
       stroke.last = c;
+      if (stroke.tool === 'contour') vp.setPreview(polylineMask(stroke.pts, size));
     }
   };
 
@@ -197,6 +199,15 @@ function attachTools(vp: TerrainViewport, data: DataBundle, client: () => Simula
     const send = (op: Parameters<SimulationClient['send']>[0]): void => client()?.send(op);
     const r = st.brushRadius;
     switch (tool) {
+      case 'contour': {
+        // 手描きの線 → 間引き → 滑らかに → 始点の近くなら閉じる（§13.3）。セル座標で整形し、正規化して Op にする
+        const cfg = (data.runtime.ui as unknown as { contour: { levels: { id: string; elevation: number }[]; widthCells: number; simplifyToleranceCells: number; chaikinPasses: number; closeDistanceCells: number; minStrokeCells: number } }).contour;
+        const level = cfg.levels.find((l) => l.id === st.contourLevel) ?? cfg.levels[0]!;
+        const cells = pts.map((v) => v * (size - 1));
+        const shaped = shapeStroke(cells, { simplifyTolerance: cfg.simplifyToleranceCells, chaikinPasses: cfg.chaikinPasses, closeDistance: cfg.closeDistanceCells }, cfg.minStrokeCells);
+        if (shaped.length >= 4) st.addContour({ points: shaped.map((v) => v / (size - 1)), elevation: level.elevation, width: cfg.widthCells });
+        break;
+      }
       case 'mountain':
         send({ type: 'op', op: { t: 'raise', tick: 0, pts, r, amount: tools.raiseAmount.value } });
         break;
@@ -234,4 +245,35 @@ function attachTools(vp: TerrainViewport, data: DataBundle, client: () => Simula
     canvas.removeEventListener('pointercancel', up);
     canvas.removeEventListener('pointerleave', leave);
   };
+}
+
+/** 描きかけの線を、プレビュー用のマスク（セルごと 0/1）にする */
+function polylineMask(pts: number[], size: number): Uint8Array {
+  const mask = new Uint8Array(size * size);
+  const px = (v: number): number => Math.min(size - 1, Math.max(0, Math.round(v * (size - 1))));
+  for (let i = 0; i + 3 < pts.length; i += 2) {
+    let x0 = px(pts[i]!);
+    let y0 = px(pts[i + 1]!);
+    const x1 = px(pts[i + 2]!);
+    const y1 = px(pts[i + 3]!);
+    const dx = Math.abs(x1 - x0);
+    const dy = -Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy;
+    for (;;) {
+      mask[y0 * size + x0] = 1;
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * err;
+      if (e2 >= dy) {
+        err += dy;
+        x0 += sx;
+      }
+      if (e2 <= dx) {
+        err += dx;
+        y0 += sy;
+      }
+    }
+  }
+  return mask;
 }

@@ -2,7 +2,7 @@ import { t } from './i18n';
 import { useUiStore } from './store';
 
 /** 初回の入口（§13.4）。審査員・初めての人が、描かなくても結果を見られる */
-export function Welcome({ onDemo, onClose }: { onDemo: () => void; onClose: () => void }) {
+export function Welcome({ onDemo, onClose, onDraw }: { onDemo: () => void; onClose: () => void; onDraw: () => void }) {
   const open = useUiStore((s) => s.welcomeOpen);
   if (!open) return null;
   return (
@@ -17,8 +17,8 @@ export function Welcome({ onDemo, onClose }: { onDemo: () => void; onClose: () =
           <button type="button" className="choice" onClick={onClose}>
             {t('welcome.sample')}
           </button>
-          <button type="button" className="choice" onClick={onClose}>
-            {t('welcome.blank')}
+          <button type="button" className="choice" onClick={onDraw}>
+            {t('contour.start')}
           </button>
         </div>
       </div>

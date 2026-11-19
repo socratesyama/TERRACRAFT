@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import type { CompareResult } from '../core/compare';
+import type { ContourStroke, Op } from '../core/ops';
 import type { ShareState } from '../core/share';
 import type { DiploState, Nation, ObsState, WorldEvent } from '../core/world';
 
-export type ToolId = 'view' | 'mountain' | 'dig' | 'afforest' | 'deforest' | 'dam' | 'fill';
+export type ToolId = 'contour' | 'view' | 'mountain' | 'dig' | 'afforest' | 'deforest' | 'dam' | 'fill';
 
 export type LayerId = 'terrain' | 'precip' | 'temperature' | 'moisture' | 'biome' | 'vegetation' | 'flood' | 'erosion' | 'nation' | 'defense' | 'diff';
 
@@ -53,6 +54,18 @@ interface UiState {
   /** 共有 URL の再生（早送り）の進み 0〜1 */
   replayProgress: number | null;
   setReplayProgress: (p: number | null) => void;
+  /** 等高線を描いて始めるモード（§13.3）。描いた線は contours に溜め、1 本描くたびに世界を作り直す */
+  contourMode: boolean;
+  contours: ContourStroke[];
+  contourLevel: string;
+  setContourLevel: (id: string) => void;
+  startContour: (defaultLevel: string) => void;
+  addContour: (s: ContourStroke) => void;
+  undoContour: () => void;
+  finishContour: () => void;
+  /** 次の init に渡す内容（共有 URL・描いた等高線）。App が一度だけ使う */
+  pendingInit: { ops: Op[]; fastForwardTo: number; blank?: boolean } | null;
+  setPendingInit: (p: { ops: Op[]; fastForwardTo: number; blank?: boolean } | null) => void;
   /** Worker を作り直す合図（同じシナリオのまま読み込み直すとき） */
   initNonce: number;
   bumpInit: () => void;
@@ -78,7 +91,7 @@ interface UiState {
 
 export const useUiStore = create<UiState>()((set) => ({
   scenarioId: 'island',
-  setScenarioId: (scenarioId) => set({ scenarioId, playing: false, rainfallScale: 1, peaceMode: false, erosionRate: null }),
+  setScenarioId: (scenarioId) => set({ scenarioId, playing: false, rainfallScale: 1, peaceMode: false, erosionRate: null, contourMode: false, contours: [] }),
   erosionRate: null,
   setErosionRate: (erosionRate) => set({ erosionRate }),
   rainfallScale: 1,
@@ -116,6 +129,43 @@ export const useUiStore = create<UiState>()((set) => ({
   setShareMessage: (shareMessage) => set({ shareMessage }),
   replayProgress: null,
   setReplayProgress: (replayProgress) => set({ replayProgress }),
+  contourMode: false,
+  contours: [],
+  contourLevel: '',
+  setContourLevel: (contourLevel) => set({ contourLevel }),
+  startContour: (defaultLevel) =>
+    set((st) => ({
+      contourMode: true,
+      contours: [],
+      contourLevel: st.contourLevel || defaultLevel,
+      tool: 'contour',
+      playing: false,
+      pendingInit: { ops: [], fastForwardTo: 0, blank: true },
+      initNonce: st.initNonce + 1,
+    })),
+  addContour: (s) =>
+    set((st) => {
+      const contours = [...st.contours, s];
+      return {
+        contours,
+        playing: false,
+        pendingInit: { ops: contours.map((stroke) => ({ t: 'contour' as const, tick: 0, stroke })), fastForwardTo: 0, blank: true },
+        initNonce: st.initNonce + 1,
+      };
+    }),
+  undoContour: () =>
+    set((st) => {
+      const contours = st.contours.slice(0, -1);
+      return {
+        contours,
+        playing: false,
+        pendingInit: { ops: contours.map((stroke) => ({ t: 'contour' as const, tick: 0, stroke })), fastForwardTo: 0, blank: true },
+        initNonce: st.initNonce + 1,
+      };
+    }),
+  finishContour: () => set({ contourMode: false, tool: 'view', notice: '地形ができました。「豪雨」を押して、雨を降らせてみましょう。' }),
+  pendingInit: null,
+  setPendingInit: (pendingInit) => set({ pendingInit }),
   initNonce: 0,
   bumpInit: () => set((st) => ({ initNonce: st.initNonce + 1, playing: false })),
   caption: null,
