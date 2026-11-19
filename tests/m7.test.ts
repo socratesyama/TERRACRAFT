@@ -116,7 +116,7 @@ describe('M7 戦争の公平性と決定論', () => {
 
   it('平和モードでは戦争が起きない', () => {
     const w = buildWorld(data, 'island', SEED, SIZE, { nations: true });
-    w.params.peaceMode = true;
+    w.params.peaceMode = 1;
     run(w, 150);
     expect(w.diplo.battle.wars).toBe(0);
     expect(w.diplo.wars).toHaveLength(0);
