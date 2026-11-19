@@ -6,5 +6,14 @@ export default defineConfig({
   base: './',
   plugins: [react()],
   worker: { format: 'es' },
-  build: { target: 'es2022', sourcemap: true },
+  build: {
+    target: 'es2022',
+    sourcemap: true,
+    rollupOptions: {
+      // 初期ロードを軽くする（§17）: 3D ライブラリと React を別チャンクにして、キャッシュを効かせる
+      output: {
+        manualChunks: (id: string) => (id.includes('node_modules/three') ? 'vendor-three' : id.includes('node_modules/react') ? 'vendor-react' : undefined),
+      },
+    },
+  },
 });
